@@ -7,9 +7,9 @@ import android.location.Location
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.*
 import java.io.File
-import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -19,12 +19,22 @@ class GpsService : Service() {
     private lateinit var gpxFile: File
     private val channelId = "gps_channel"
     private var locationCallback: LocationCallback? = null
+    private var ultimaPosicion: Location? = null
+    private var tiempoQuieto: Long = 0
+    private val UMBRAL_METROS = 30f
+    private val UMBRAL_TIEMPO_MS = 3 * 60 * 1000L
+    private var popupMostrado = false
+    private var tiempoInicioSegmento: Long = 0
+    private var numeroSegmento = 0
+    private lateinit var timerHandler: android.os.Handler
+    private lateinit var timerRunnable: Runnable
 
     override fun onCreate() {
         super.onCreate()
         android.util.Log.d("PeyaGPS", "onCreate")
         fusedClient = LocationServices.getFusedLocationProviderClient(this)
         crearNotificacion()
+        iniciarTimer()
         iniciarSegmento()
         iniciarTracking()
     }
@@ -33,24 +43,57 @@ class GpsService : Service() {
         val channel = NotificationChannel(channelId, "GPS Tracking", NotificationManager.IMPORTANCE_LOW)
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         val notif = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Peya Real Numbers")
-            .setContentText("Registrando ruta...")
+            .setContentTitle("Peya Real Numbers — Jornada 1")
+            .setContentText("En curso: 00:00:00")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setOngoing(true)
             .build()
         startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
     }
 
+    private fun iniciarTimer() {
+        timerHandler = android.os.Handler(Looper.getMainLooper())
+        timerRunnable = object : Runnable {
+            override fun run() {
+                actualizarNotificacion()
+                timerHandler.postDelayed(this, 1000)
+            }
+        }
+        timerHandler.post(timerRunnable)
+    }
+
+    private fun actualizarNotificacion() {
+        val segundos = (System.currentTimeMillis() - tiempoInicioSegmento) / 1000
+        val horas = segundos / 3600
+        val mins = (segundos % 3600) / 60
+        val segs = segundos % 60
+        val tiempo = String.format("%02d:%02d:%02d", horas, mins, segs)
+
+        val notif = NotificationCompat.Builder(this, channelId)
+            .setContentTitle("Peya Real Numbers — Jornada $numeroSegmento")
+            .setContentText("En curso: $tiempo")
+            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setOngoing(true)
+            .build()
+        getSystemService(NotificationManager::class.java).notify(1, notif)
+
+        val intent = Intent("com.example.peyarealnumbers.TIMER")
+        intent.putExtra("tiempo", tiempo)
+        intent.putExtra("jornada", numeroSegmento)
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+    }
+
     private fun iniciarSegmento() {
-        val fecha = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
-        gpxFile = File(getExternalFilesDir(null), "ruta_$fecha.gpx")
+        tiempoInicioSegmento = System.currentTimeMillis()
+        numeroSegmento++
+        val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        gpxFile = File(getExternalFilesDir(null), "jornada_$fecha.gpx")
 
         if (!gpxFile.exists()) {
-            // Archivo nuevo
             gpxFile.writeText("<?xml version=\"1.0\"?>\n<gpx version=\"1.1\">\n<trk>\n</trk>\n</gpx>")
             android.util.Log.d("PeyaGPS", "Archivo nuevo: ${gpxFile.name}")
         }
 
-        // Insertamos nuevo segmento antes de </trk>
         val contenido = gpxFile.readText()
         val segmento = "<trkseg>\n</trkseg>\n</trk>"
         val nuevo = contenido.replace("</trk>", segmento)
@@ -82,13 +125,36 @@ class GpsService : Service() {
         if (idx != -1) {
             val nuevo = contenido.substring(0, idx) + punto + contenido.substring(idx)
             gpxFile.writeText(nuevo)
+
+            if (ultimaPosicion != null) {
+                val distancia = loc.distanceTo(ultimaPosicion!!)
+                if (distancia < UMBRAL_METROS) {
+                    if (tiempoQuieto == 0L) tiempoQuieto = System.currentTimeMillis()
+                    val quietoDesde = System.currentTimeMillis() - tiempoQuieto
+                    if (quietoDesde >= UMBRAL_TIEMPO_MS && !popupMostrado) {
+                        popupMostrado = true
+                        enviarNotificacionInactividad()
+                    }
+                } else {
+                    tiempoQuieto = 0L
+                    popupMostrado = false
+                }
+            }
+            ultimaPosicion = loc
         }
         android.util.Log.d("PeyaGPS", "Punto: ${loc.latitude}, ${loc.longitude}, alt: $alt")
     }
 
+    private fun enviarNotificacionInactividad() {
+        val intent = Intent("com.example.peyarealnumbers.INACTIVO")
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+        android.util.Log.d("PeyaGPS", "Inactividad detectada")
+    }
+
     override fun onDestroy() {
+        timerHandler.removeCallbacks(timerRunnable)
         locationCallback?.let { fusedClient.removeLocationUpdates(it) }
-        android.util.Log.d("PeyaGPS", "Segmento cerrado")
+        android.util.Log.d("PeyaGPS", "Jornada cerrada")
         super.onDestroy()
     }
 
