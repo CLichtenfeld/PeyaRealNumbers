@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
-
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -17,6 +18,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PeyaRealNumbers">
+
+        <activity
+            android:name=".InactividadActivity"
+            android:theme="@style/Theme.AppCompat.Dialog"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance" />
 
         <activity
             android:name=".MainActivity"
@@ -33,6 +40,12 @@
             android:name=".GpsService"
             android:foregroundServiceType="location"
             android:permission="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+        <receiver android:name=".EstadoReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.peyarealnumbers.ESTADO"/>
+            </intent-filter>
+        </receiver>
 
     </application>
 

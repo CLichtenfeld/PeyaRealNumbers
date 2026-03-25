@@ -42,11 +42,23 @@ class GpsService : Service() {
     private fun crearNotificacion() {
         val channel = NotificationChannel(channelId, "GPS Tracking", NotificationManager.IMPORTANCE_LOW)
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+
+        val intentAbrir = Intent(this, MainActivity::class.java)
+        intentAbrir.action = Intent.ACTION_MAIN
+        intentAbrir.addCategory(Intent.CATEGORY_LAUNCHER)
+        intentAbrir.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+
+        val pendingAbrir = PendingIntent.getActivity(
+            this, 0, intentAbrir,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notif = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Peya Real Numbers — Jornada 1")
             .setContentText("En curso: 00:00:00")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
+            .setContentIntent(pendingAbrir)
             .build()
         startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
     }
@@ -69,11 +81,22 @@ class GpsService : Service() {
         val segs = segundos % 60
         val tiempo = String.format("%02d:%02d:%02d", horas, mins, segs)
 
+        val intentAbrir = Intent(this, MainActivity::class.java)
+        intentAbrir.action = Intent.ACTION_MAIN
+        intentAbrir.addCategory(Intent.CATEGORY_LAUNCHER)
+        intentAbrir.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+
+        val pendingAbrir = PendingIntent.getActivity(
+            this, 0, intentAbrir,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notif = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Peya Real Numbers — Jornada $numeroSegmento")
             .setContentText("En curso: $tiempo")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
+            .setContentIntent(pendingAbrir)
             .build()
         getSystemService(NotificationManager::class.java).notify(1, notif)
 
@@ -118,7 +141,7 @@ class GpsService : Service() {
     private fun guardarPunto(loc: Location) {
         val tiempo = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date())
         val alt = if (loc.hasAltitude()) loc.altitude else 0.0
-        val punto = "<trkpt lat=\"${loc.latitude}\" lon=\"${loc.longitude}\" ele=\"$alt\"><time>$tiempo</time></trkpt>\n"
+        val punto = "<trkpt lat=\"${loc.latitude}\" lon=\"${loc.longitude}\"><ele>$alt</ele><time>$tiempo</time></trkpt>\n"
 
         val contenido = gpxFile.readText()
         val idx = contenido.lastIndexOf("</trkseg>")
@@ -146,9 +169,59 @@ class GpsService : Service() {
     }
 
     private fun enviarNotificacionInactividad() {
-        val intent = Intent("com.example.peyarealnumbers.INACTIVO")
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
-        android.util.Log.d("PeyaGPS", "Inactividad detectada")
+        val intentEsperando = Intent(this, EstadoReceiver::class.java).apply {
+            action = "com.example.peyarealnumbers.ESTADO"
+            putExtra("tipo", "esperando")
+        }
+        val intentLibre = Intent(this, EstadoReceiver::class.java).apply {
+            action = "com.example.peyarealnumbers.ESTADO"
+            putExtra("tipo", "libre")
+        }
+
+        val pendingEsperando = PendingIntent.getBroadcast(
+            this, 1, intentEsperando,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val pendingLibre = PendingIntent.getBroadcast(
+            this, 2, intentLibre,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val intentPantalla = Intent(this, InactividadActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingPantalla = PendingIntent.getActivity(
+            this, 3, intentPantalla,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Canal dedicado para inactividad con importancia alta
+        val canalInactividad = "inactividad_channel"
+        val canal = NotificationChannel(
+            canalInactividad,
+            "Inactividad",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(canal)
+
+        val notif = NotificationCompat.Builder(this, canalInactividad)
+            .setContentTitle("¿Qué estás haciendo?")
+            .setContentText("Llevas 3 min sin moverte")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(pendingPantalla, true)
+            .addAction(0, "Esperando pedido 🛵", pendingEsperando)
+            .addAction(0, "Tiempo libre ☕", pendingLibre)
+            .build()
+
+        getSystemService(NotificationManager::class.java).notify(2, notif)
+
+        timerHandler.postDelayed({ popupMostrado = false }, UMBRAL_TIEMPO_MS)
+        android.util.Log.d("PeyaGPS", "Notificación inactividad enviada")
     }
 
     override fun onDestroy() {

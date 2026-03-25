@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
 
     private val PERMISSION_REQUEST = 1001
     private var corriendo = false
-    private lateinit var receptorInactividad: BroadcastReceiver
+
     private lateinit var receptorTimer: BroadcastReceiver
     private lateinit var btn: Button
     private lateinit var tvTimer: TextView
@@ -42,13 +42,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        receptorInactividad = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                mostrarPopupInactividad()
-            }
-        }
-        LocalBroadcastManager.getInstance(this)
-            .registerReceiver(receptorInactividad, IntentFilter("com.example.peyarealnumbers.INACTIVO"))
+
 
         receptorTimer = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -100,16 +94,32 @@ class MainActivity : AppCompatActivity() {
         val hora = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
         val archivo = java.io.File(getExternalFilesDir(null), "jornada_$fecha.json")
 
-        val segmento = """{"hora_fin":"$hora","ganancia":$ganancia,"propina":$propina}"""
+        try {
+            val data = if (archivo.exists()) {
+                org.json.JSONObject(archivo.readText())
+            } else {
+                org.json.JSONObject().apply {
+                    put("alias", "")
+                    put("segmentos", org.json.JSONArray())
+                    put("estados", org.json.JSONArray())
+                }
+            }
 
-        if (archivo.exists()) {
-            val contenido = archivo.readText()
-            val nuevo = contenido.replace("]}", """,${segmento}]}""")
-            archivo.writeText(nuevo)
-        } else {
-            archivo.writeText("""{"alias":"","segmentos":[${segmento}]}""")
+            val segmentos = data.optJSONArray("segmentos") ?: org.json.JSONArray()
+            val nuevo = org.json.JSONObject().apply {
+                put("hora_fin", hora)
+                put("ganancia", ganancia)
+                put("propina", propina)
+            }
+            segmentos.put(nuevo)
+            data.put("segmentos", segmentos)
+
+            archivo.writeText(data.toString(2))
+            android.util.Log.d("PeyaGPS", "Segmento guardado: $ganancia + $propina propina")
+
+        } catch (e: Exception) {
+            android.util.Log.e("PeyaGPS", "Error guardando segmento: ${e.message}")
         }
-        android.util.Log.d("PeyaGPS", "Jornada guardada: $ganancia + $propina propina")
     }
 
     private fun pedirPermisos() {
@@ -124,19 +134,9 @@ class MainActivity : AppCompatActivity() {
         if (falta) ActivityCompat.requestPermissions(this, permisos, PERMISSION_REQUEST)
     }
 
-    private fun mostrarPopupInactividad() {
-        android.app.AlertDialog.Builder(this)
-            .setTitle("¿Qué estás haciendo?")
-            .setItems(arrayOf("Esperando pedido 🛵", "Tiempo libre ☕")) { _, opcion ->
-                val tipo = if (opcion == 0) "esperando" else "libre"
-                android.util.Log.d("PeyaGPS", "Estado inactivo: $tipo")
-            }
-            .show()
-    }
 
     override fun onDestroy() {
         super.onDestroy()
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(receptorInactividad)
         LocalBroadcastManager.getInstance(this).unregisterReceiver(receptorTimer)
     }
 }
