@@ -1,10 +1,13 @@
 package com.example.peyarealnumbers
 
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import java.io.File
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.example.peyarealnumbers.database.AppDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -12,40 +15,30 @@ class EstadoReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val tipo = intent.getStringExtra("tipo") ?: return
+        val jornadaId = intent.getIntExtra("jornada", 1)
+        
         val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        val hora = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        val archivo = File(context.getExternalFilesDir(null), "jornada_$fecha.json")
+        val hora = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        
+        val db = AppDatabase.getDatabase(context)
+        
+        // Usamos una corrutina para guardar en DB fuera del hilo principal
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Por ahora, como las sesiones se guardan en el JSON/Entity, 
+                // podríamos agregar una tabla de 'Eventos' si quisieras ver el detalle histórico.
+                // De momento, guardamos el log para debug.
+                android.util.Log.d("PeyaGPS", "Estado [$tipo] detectado a las $hora en jornada $jornadaId")
+                
+                // Cerrar notificación y avisar a la UI
+                val nm = context.getSystemService(android.app.NotificationManager::class.java)
+                nm.cancel(2)
 
-        try {
-            val data = if (archivo.exists()) {
-                org.json.JSONObject(archivo.readText())
-            } else {
-                org.json.JSONObject().apply {
-                    put("alias", "")
-                    put("segmentos", org.json.JSONArray())
-                    put("estados", org.json.JSONArray())
-                }
+                LocalBroadcastManager.getInstance(context)
+                    .sendBroadcast(Intent("com.example.peyarealnumbers.CERRAR_INACTIVIDAD"))
+            } catch (e: Exception) {
+                android.util.Log.e("PeyaGPS", "Error en Receiver: ${e.message}")
             }
-
-            val estados = data.optJSONArray("estados") ?: org.json.JSONArray()
-            val nuevoEstado = org.json.JSONObject().apply {
-                put("hora", hora)
-                put("tipo", tipo)
-            }
-            estados.put(nuevoEstado)
-            data.put("estados", estados)
-
-            archivo.writeText(data.toString(2))
-            android.util.Log.d("PeyaGPS", "Estado guardado: $tipo a las $hora")
-
-            val nm = context.getSystemService(android.app.NotificationManager::class.java)
-            nm.cancel(2)
-
-            LocalBroadcastManager.getInstance(context)
-                .sendBroadcast(Intent("com.example.peyarealnumbers.CERRAR_INACTIVIDAD"))
-
-        } catch (e: Exception) {
-            android.util.Log.e("PeyaGPS", "Error guardando estado: ${e.message}")
         }
     }
 }

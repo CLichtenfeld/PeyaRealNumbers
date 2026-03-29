@@ -1,89 +1,63 @@
 package com.example.peyarealnumbers
 
-import android.app.AlertDialog
-import android.app.NotificationManager
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.media.RingtoneManager
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.view.WindowManager
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
+import android.content.Intent
 
 class InactividadActivity : AppCompatActivity() {
 
-    private lateinit var receptorCerrar: BroadcastReceiver
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        receptorCerrar = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                cancelarNotificacion()
-                finish()
-            }
+        
+        // Mostrar sobre pantalla de bloqueo y encender pantalla
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
         }
-        LocalBroadcastManager.getInstance(this)
-            .registerReceiver(receptorCerrar, IntentFilter("com.example.peyarealnumbers.CERRAR_INACTIVIDAD"))
+        
+        setContentView(R.layout.activity_inactividad)
 
-        AlertDialog.Builder(this)
-            .setTitle("¿Qué estás haciendo?")
-            .setCancelable(false)
-            .setItems(arrayOf("Esperando pedido 🛵", "Tiempo libre ☕")) { _, opcion ->
-                val tipo = if (opcion == 0) "esperando" else "libre"
-                guardarEstado(tipo)
-                cancelarNotificacion()
-                finish()
-            }
-            .show()
-    }
+        val btnVacio = findViewById<Button>(R.id.btnEsTiempoVacio)
+        val btnLaburo = findViewById<Button>(R.id.btnEsEsperandoPedido)
 
-    private fun cancelarNotificacion() {
-        getSystemService(NotificationManager::class.java).cancel(2)
-    }
+        // Hacer ruido y vibrar
+        val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        val r = RingtoneManager.getRingtone(applicationContext, notification)
+        r.play()
 
-    private fun guardarEstado(tipo: String) {
-        val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        val hora = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        val archivo = File(getExternalFilesDir(null), "jornada_$fecha.json")
-
-        try {
-            val data = if (archivo.exists()) {
-                org.json.JSONObject(archivo.readText())
-            } else {
-                org.json.JSONObject().apply {
-                    put("alias", "")
-                    put("segmentos", org.json.JSONArray())
-                    put("estados", org.json.JSONArray())
-                }
-            }
-
-            val estados = data.optJSONArray("estados") ?: org.json.JSONArray()
-            val nuevoEstado = org.json.JSONObject().apply {
-                put("hora", hora)
-                put("tipo", tipo)
-            }
-            estados.put(nuevoEstado)
-            data.put("estados", estados)
-
-            archivo.writeText(data.toString(2))
-            android.util.Log.d("PeyaGPS", "Estado guardado: $tipo a las $hora")
-
-        } catch (e: Exception) {
-            android.util.Log.e("PeyaGPS", "Error guardando estado: ${e.message}")
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(1000, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            vibrator.vibrate(1000)
         }
-    }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(receptorCerrar)
-    }
+        btnVacio.setOnClickListener {
+            val intent = Intent("ACCION_INACTIVIDAD").apply {
+                putExtra("es_vacio", true)
+            }
+            LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+            r.stop()
+            finish()
+        }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        // Bloquear botón atrás
+        btnLaburo.setOnClickListener {
+            val intent = Intent("ACCION_INACTIVIDAD").apply {
+                putExtra("es_vacio", false)
+            }
+            LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+            r.stop()
+            finish()
+        }
     }
 }

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/app_background"
+    android:fitsSystemWindows="true">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="32dp"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="16dp">
+
+        <ImageButton
+            android:id="@+id/btnBackSoporte"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="@color/app_surface"
+            android:elevation="4dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:padding="12dp"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="SOPORTE Y AYUDA"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:letterSpacing="0.1"/>
+    </RelativeLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="20dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- CONTACTO DESARROLLADOR -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="20dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/app_surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Contacto del Desarrollador"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent_green"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="¿Tienes dudas técnicas o problemas con la app?"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginBottom="12dp"/>
+
+                    <TextView
+                        android:id="@+id/tvEmailSoporte"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="📧 soporte.peya@example.com"
+                        android:textSize="15sp"
+                        android:textColor="@color/text_primary"
+                        android:paddingVertical="12dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"/>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#10000000"
+                        android:layout_marginVertical="4dp"/>
+
+                    <TextView
+                        android:id="@+id/tvWappSoporte"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="💬 WhatsApp Soporte"
+                        android:textSize="15sp"
+                        android:textColor="@color/text_primary"
+                        android:paddingVertical="12dp"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- FORMULARIO SUGERENCIAS -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/app_surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Sugerencias y Críticas"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/accent_green"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tu opinión nos ayuda a mejorar la precisión de Peya Real Numbers."
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginBottom="12dp"/>
+
+                    <EditText
+                        android:id="@+id/etSugerencia"
+                        android:layout_width="match_parent"
+                        android:layout_height="120dp"
+                        android:background="@drawable/btn_rounded"
+                        android:backgroundTint="#10000000"
+                        android:gravity="top"
+                        android:hint="Escribe aquí tu mensaje..."
+                        android:padding="12dp"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary"
+                        android:inputType="textMultiLine" />
+
+                    <Button
+                        android:id="@+id/btnEnviarSugerencia"
+                        android:layout_width="match_parent"
+                        android:layout_height="54dp"
+                        android:layout_marginTop="16dp"
+                        android:text="ENVIAR MENSAJE"
+                        android:textStyle="bold"
+                        android:backgroundTint="@color/accent_green"
+                        android:textColor="@color/white"
+                        app:cornerRadius="12dp"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- INFO APP -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Peya Real Numbers v1.0\nDesarrollado para Riders"
+                android:gravity="center"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="40dp"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

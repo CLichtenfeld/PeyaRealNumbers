@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="#FFFFFF">
+
+    <ImageView
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@android:drawable/ic_dialog_alert"
+        android:layout_marginBottom="24dp"
+        android:contentDescription="Alerta" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="¡Llevas 5 minutos detenido!"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#212529"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="¿Este tiempo fue de espera de pedidos o estuviste trabajando?"
+        android:textSize="16sp"
+        android:textColor="#6c757d"
+        android:gravity="center"
+        android:layout_marginBottom="40dp"/>
+
+    <Button
+        android:id="@+id/btnEsTiempoVacio"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:text="ES TIEMPO VACÍO\n(No me cayeron pedidos)"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:backgroundTint="#FF9800"
+        android:textColor="#FFFFFF"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btnEsEsperandoPedido"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:text="ESTOY TRABAJANDO\n(Esperando preparación)"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:backgroundTint="#4CAF50"
+        android:textColor="#FFFFFF"/>
+
+</LinearLayout>

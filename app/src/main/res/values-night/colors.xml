@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- UI Colors Dark -->
+    <color name="app_background">#121212</color>
+    <color name="app_surface">#1E1E1E</color>
+    <color name="text_primary">#E1E1E1</color>
+    <color name="text_secondary">#A0A0A0</color>
+    <color name="card_speed_bg">#1B2E1D</color>
+    <color name="card_pace_bg">#2C2C2C</color>
+    <color name="card_vacio_bg">#2E251B</color>
+
+    <!-- Detalle Dia Specific Dark -->
+    <color name="card_real_km_bg">#1A237E</color>
+    <color name="card_pago_km_bg">#2C2C2C</color>
+    <color name="card_eficiencia_bg">#4A148C</color>
+    <color name="card_real_km_text">#BBDEFB</color>
+    <color name="card_pago_km_text">#E1E1E1</color>
+    <color name="card_eficiencia_text">#E1BEE7</color>
+    <color name="accent_green">#00B894</color>
+</resources>
