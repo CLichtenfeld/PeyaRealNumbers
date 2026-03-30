@@ -8,6 +8,8 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.location.Location
+import android.media.AudioManager
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
@@ -161,8 +163,8 @@ class GpsService : Service() {
             if (loc.speed < 0.6f) 0.0f else loc.speed
         } else {
             val d = ultimaPosicion?.distanceTo(locFiltrada) ?: 0.0f
-            // Ajustado a 7.0f según el nuevo intervalo de GPS
-            if (d < 1.0f) 0.0f else (d / 7.0f) 
+            // Ajustado a 4.0f para coincidir con el nuevo intervalo de GPS de 4 segundos
+            if (d < 1.0f) 0.0f else (d / 4.0f) 
         }
         
         velocidadRealKmh = speedMs * 3.6
@@ -197,7 +199,7 @@ class GpsService : Service() {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM
@@ -219,6 +221,7 @@ class GpsService : Service() {
             serviceScope.launch(Dispatchers.Main) {
                 try { 
                     windowManager.addView(overlayView, layoutParams)
+                    reproducirSonidoAlerta()
                     Log.d("PeyaGps", "Overlay añadido a WindowManager")
                 } catch (e: Exception) {
                     Log.e("PeyaGps", "Error al añadir overlay: ${e.message}")
@@ -226,6 +229,16 @@ class GpsService : Service() {
             }
         } catch (e: Exception) {
             Log.e("PeyaGps", "Error al inflar overlay: ${e.message}")
+        }
+    }
+
+    private fun reproducirSonidoAlerta() {
+        try {
+            val alerta = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val r = RingtoneManager.getRingtone(applicationContext, alerta)
+            r.play()
+        } catch (e: Exception) {
+            Log.e("PeyaGps", "No se pudo reproducir el sonido: ${e.message}")
         }
     }
 
@@ -246,7 +259,8 @@ class GpsService : Service() {
                 val segundos = (ahora - tiempoInicioSegmento) / 1000
                 TrackingManager.updateTimer(String.format(Locale.getDefault(), "%02d:%02d:%02d", segundos / 3600, (segundos % 3600) / 60, segundos % 60), numeroSegmento)
                 
-                velocidadSuavizadaKmh += (velocidadRealKmh - velocidadSuavizadaKmh) * 0.4
+                // Factor de suavizado aumentado a 0.75 para reducir el retraso con el intervalo de 4s
+                velocidadSuavizadaKmh += (velocidadRealKmh - velocidadSuavizadaKmh) * 0.75
                 if (velocidadSuavizadaKmh < 0.5) velocidadSuavizadaKmh = 0.0
 
                 if (velocidadSuavizadaKmh < 2.0) {
@@ -317,8 +331,8 @@ class GpsService : Service() {
     }
 
     private fun iniciarTracking() {
-        // Intervalo de GPS restaurado a 7 segundos para ahorro de batería
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 7000).build()
+        // Intervalo de GPS ajustado a 4 segundos (4000 ms) por petición del usuario
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 4000).build()
         locationCallback = object : LocationCallback() { override fun onLocationResult(result: LocationResult) { result.lastLocation?.let { guardarPunto(it) } } }
         try { fusedClient.requestLocationUpdates(request, locationCallback!!, Looper.getMainLooper()) } catch (e: SecurityException) { }
     }
