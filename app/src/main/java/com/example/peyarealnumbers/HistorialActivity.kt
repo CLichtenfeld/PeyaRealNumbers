@@ -36,7 +36,7 @@ class HistorialActivity : AppCompatActivity() {
     
     private lateinit var tvSemanaMonto: TextView
     private lateinit var tvSemanaEficiencia: TextView
-    private lateinit var tvSemanaKcal: TextView
+    private lateinit var tvSemanaInactividad: TextView
 
     private lateinit var tvRecordGanancia: TextView
     private lateinit var tvRecordEficiencia: TextView
@@ -84,7 +84,7 @@ class HistorialActivity : AppCompatActivity() {
         
         tvSemanaMonto = findViewById(R.id.tvSemanaMonto)
         tvSemanaEficiencia = findViewById(R.id.tvSemanaEficiencia)
-        tvSemanaKcal = findViewById(R.id.tvSemanaKcal)
+        tvSemanaInactividad = findViewById(R.id.tvSemanaInactividad)
 
         tvRecordGanancia = findViewById(R.id.tvRecordGanancia)
         tvRecordEficiencia = findViewById(R.id.tvRecordEficiencia)
@@ -119,7 +119,7 @@ class HistorialActivity : AppCompatActivity() {
             📊 ${if (currentFilter == "ANIO") "MI RESUMEN ANUAL" else "MI RESUMEN ÚLTIMOS $limit DÍAS"}
             💰 Total: ${tvSemanaMonto.text}
             ⚡ Eficiencia: ${tvSemanaEficiencia.text}
-            ⏱️ Inactividad: ${tvSemanaKcal.text}
+            ⏱️ Inactividad: ${tvSemanaInactividad.text}
         """.trimIndent()
 
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -190,7 +190,7 @@ class HistorialActivity : AppCompatActivity() {
             tVacio += j.tiempoVacioTotalSeg
         }
         tvSemanaMonto.text = "$$monto"
-        tvSemanaKcal.text = "${if (tTotal > 0) (tVacio.toFloat() / tTotal * 100).toInt() else 0}%"
+        tvSemanaInactividad.text = "${if (tTotal > 0) (tVacio.toFloat() / tTotal * 100).toInt() else 0}%"
         tvSemanaEficiencia.text = if (dist > 0.1) String.format(Locale.getDefault(), "$%.1f/km", monto / dist) else "$0/km"
     }
 
@@ -215,19 +215,40 @@ class HistorialActivity : AppCompatActivity() {
         if (jornadas.isEmpty()) { trendChart.setData(emptyList(), emptyList()); return }
         val limit = when(currentFilter) { "SEMANA" -> 7; "MES" -> 30; "ANIO" -> 365; else -> 30 }
         tvTrendTitle.text = "TENDENCIA $/KM (ÚLTIMOS $limit DÍAS)"
+        
         val filtradas = jornadas.filter { it.distanciaRealTotal > 0 }.take(limit).reversed()
+        if (filtradas.isEmpty()) { trendChart.setData(emptyList(), emptyList()); return }
+
         val pPago = filtradas.map { ((it.gananciaTotal + it.propinaTotal) / it.distanciaRealTotal).toFloat() }
         val pEsfuerzo = filtradas.map { (it.joulesTotales / 4184.0 / it.distanciaRealTotal).toFloat() }
-        val labels = filtradas.mapIndexed { i, j ->
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(j.fecha)!!
-            val day = Calendar.getInstance().apply { time = date }.get(Calendar.DAY_OF_MONTH)
-            if (limit > 30 && day == 10 || limit == 30 && i % 5 == 0 || limit <= 7) SimpleDateFormat("dd/MM", Locale.getDefault()).format(date) else ""
+        
+        // Promedio real del período para la línea de referencia (coincide con el resumen superior)
+        val totalMonto = filtradas.sumOf { (it.gananciaTotal + it.propinaTotal).toDouble() }
+        val totalDist = filtradas.sumOf { it.distanciaRealTotal }
+        val avg = if (totalDist > 0.01) (totalMonto / totalDist).toFloat() else 0f
+        
+        var lastMonthShown = -1
+        val labels = mutableListOf<String>()
+        for (j in filtradas) {
+            val date = try { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(j.fecha)!! } catch(e: Exception) { Date() }
+            val cal = Calendar.getInstance().apply { time = date }
+            val month = cal.get(Calendar.MONTH)
+            
+            val label = when {
+                limit <= 7 -> SimpleDateFormat("dd/MM", Locale.getDefault()).format(date)
+                limit == 30 -> if (cal.get(Calendar.DAY_OF_MONTH) % 5 == 0) SimpleDateFormat("dd/MM", Locale.getDefault()).format(date) else ""
+                else -> { // Caso ANIO (365)
+                    if (month != lastMonthShown) {
+                        lastMonthShown = month
+                        SimpleDateFormat("MMM", Locale("es", "ES")).format(date).uppercase()
+                    } else ""
+                }
+            }
+            labels.add(label)
         }
-        if (pPago.size >= 2) {
-            val avg = pPago.average().toFloat()
-            tvTrendAvg.text = String.format("AVG PAGO: $%.0f", avg)
-            trendChart.setData(pPago, pEsfuerzo, labels, avg)
-        } else trendChart.setData(emptyList(), emptyList())
+
+        tvTrendAvg.text = String.format("AVG PAGO: $%.1f", avg)
+        trendChart.setData(pPago, pEsfuerzo, labels, avg)
     }
 
     class HistorialAdapter(private val jornadas: List<JornadaEntity>, private val onClick: (JornadaEntity) -> Unit) :

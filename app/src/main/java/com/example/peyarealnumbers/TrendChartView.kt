@@ -37,7 +37,7 @@ class TrendChartView @JvmOverloads constructor(
     }
 
     private val paintAvgLine = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#B2BEC3")
+        color = Color.parseColor("#E67E22") // Naranja más visible
         strokeWidth = 3f
         style = Paint.Style.STROKE
         pathEffect = DashPathEffect(floatArrayOf(10f, 10f), 0f)
@@ -47,13 +47,11 @@ class TrendChartView @JvmOverloads constructor(
         color = Color.parseColor("#E0E0E0")
         strokeWidth = 2f
         style = Paint.Style.STROKE
-        pathEffect = DashPathEffect(floatArrayOf(10f, 10f), 0f)
     }
 
     private val paintText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#B2BEC3")
+        color = Color.parseColor("#636E72") // Gris oscuro para mejor legibilidad
         textSize = 22f
-        textAlign = Paint.Align.CENTER
     }
 
     fun setData(puntosPago: List<Float>, puntosEsfuerzo: List<Float>, labels: List<String> = emptyList(), avg: Float? = null) {
@@ -66,109 +64,90 @@ class TrendChartView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val width = width.toFloat()
-        val height = height.toFloat()
+        if (dataPointsPago.size < 2) return
+
+        val w = width.toFloat()
+        val h = height.toFloat()
+        val padL = 90f
+        val padR = 40f
+        val padT = 30f
+        val padB = 80f // Espacio para etiquetas
+        val cW = w - padL - padR
+        val cH = h - padT - padB
+
+        val maxP = dataPointsPago.maxOrNull() ?: 1f
+        val minP = dataPointsPago.minOrNull() ?: 0f
+        val avgP = averagePago ?: 0f
         
-        if (dataPointsPago.size < 2) {
-            paintText.textSize = 32f
-            canvas.drawText("No hay datos suficientes", width / 2, height / 2, paintText)
-            return
+        val top = maxOf(maxP, avgP) * 1.1f
+        val bot = minOf(minP, avgP) * 0.9f
+        val range = if (top == bot) 1f else top - bot
+
+        // Dibujar Grid (3 líneas horizontales)
+        for (i in 0..2) {
+            val y = padT + i * cH / 2
+            canvas.drawLine(padL, y, w - padR, y, paintGrid)
         }
 
-        val paddingLeft = 100f
-        val paddingRight = 40f
-        val paddingTop = 40f
-        val paddingBottom = 100f
-        
-        val maxPago = dataPointsPago.maxOrNull()?.let { if (it == 0f) 1f else it } ?: 1f
-        val minPago = dataPointsPago.minOrNull() ?: 0f
-        
-        // Ajustar el rango para incluir la línea de promedio si existe
-        var effectiveMax = maxPago
-        var effectiveMin = minPago
-        averagePago?.let {
-            if (it > effectiveMax) effectiveMax = it * 1.1f
-            if (it < effectiveMin) effectiveMin = it * 0.9f
-        }
-        
-        val rangePago = if (effectiveMax == effectiveMin) 1f else effectiveMax - effectiveMin
+        val step = cW / (dataPointsPago.size - 1)
 
-        val maxEsfuerzo = dataPointsEsfuerzo.maxOrNull()?.let { if (it == 0f) 1f else it } ?: 1f
-        val minEsfuerzo = dataPointsEsfuerzo.minOrNull() ?: 0f
-        val rangeEsfuerzo = if (maxEsfuerzo == minEsfuerzo) 1f else maxEsfuerzo - minEsfuerzo
-
-        // Dibujar Grid
-        val gridLines = 3
-        for (i in 0..gridLines) {
-            val y = paddingTop + i * (height - paddingTop - paddingBottom) / gridLines
-            canvas.drawLine(paddingLeft, y, width - paddingRight, y, paintGrid)
-        }
-
-        val xStep = (width - paddingLeft - paddingRight) / (dataPointsPago.size - 1)
-
-        // 1. DIBUJAR LÍNEA DE ESFUERZO (Fondo)
-        val pathEsfuerzo = Path()
+        // 1. Dibujar Línea de Esfuerzo
+        val pathE = Path()
+        val maxE = dataPointsEsfuerzo.maxOrNull() ?: 1f
+        val rangeE = if (maxE == 0f) 1f else maxE
         for (i in dataPointsEsfuerzo.indices) {
-            val x = paddingLeft + i * xStep
-            val normalizedY = (dataPointsEsfuerzo[i] - minEsfuerzo) / rangeEsfuerzo
-            val y = height - paddingBottom - (normalizedY * (height - paddingTop - paddingBottom))
-            if (i == 0) pathEsfuerzo.moveTo(x, y) else pathEsfuerzo.lineTo(x, y)
+            val x = padL + i * step
+            val y = h - padB - (dataPointsEsfuerzo[i] / rangeE * cH)
+            if (i == 0) pathE.moveTo(x, y) else pathE.lineTo(x, y)
         }
-        canvas.drawPath(pathEsfuerzo, paintLineEsfuerzo)
+        canvas.drawPath(pathE, paintLineEsfuerzo)
 
-        // 2. DIBUJAR LÍNEA DE PROMEDIO (Referencia)
-        averagePago?.let { avg ->
-            val normalizedY = (avg - effectiveMin) / rangePago
-            val y = height - paddingBottom - (normalizedY * (height - paddingTop - paddingBottom))
-            canvas.drawLine(paddingLeft, y, width - paddingRight, y, paintAvgLine)
-            
-            paintText.textAlign = Paint.Align.RIGHT
-            paintText.textSize = 20f
-            canvas.drawText(String.format(Locale.getDefault(), "AVG: $%.1f", avg), width - paddingRight, y - 10f, paintText)
-        }
-
-        // 3. DIBUJAR LÍNEA DE PAGO (Frente)
-        val pathPago = Path()
-        val fillPathPago = Path()
+        // 2. Dibujar Línea de Pago y Relleno
+        val pathP = Path()
+        val pathF = Path()
         for (i in dataPointsPago.indices) {
-            val x = paddingLeft + i * xStep
-            val normalizedY = (dataPointsPago[i] - effectiveMin) / rangePago
-            val y = height - paddingBottom - (normalizedY * (height - paddingTop - paddingBottom))
-            
+            val x = padL + i * step
+            val y = h - padB - ((dataPointsPago[i] - bot) / range * cH)
             if (i == 0) {
-                pathPago.moveTo(x, y)
-                fillPathPago.moveTo(x, height - paddingBottom)
-                fillPathPago.lineTo(x, y)
+                pathP.moveTo(x, y)
+                pathF.moveTo(x, h - padB)
+                pathF.lineTo(x, y)
             } else {
-                pathPago.lineTo(x, y)
-                fillPathPago.lineTo(x, y)
+                pathP.lineTo(x, y)
+                pathF.lineTo(x, y)
             }
-            
             if (i == dataPointsPago.size - 1) {
-                fillPathPago.lineTo(x, height - paddingBottom)
-                fillPathPago.close()
-            }
-
-            if (dataLabels.isNotEmpty() && i < dataLabels.size && dataLabels[i].isNotEmpty()) {
-                canvas.save()
-                paintText.textAlign = Paint.Align.RIGHT
-                paintText.textSize = 22f
-                // Rotar 45 grados en diagonal
-                canvas.rotate(-45f, x, height - 30f)
-                canvas.drawText(dataLabels[i], x, height - 30f, paintText)
-                canvas.restore()
+                pathF.lineTo(x, h - padB)
+                pathF.close()
             }
         }
+        paintFillPago.shader = LinearGradient(0f, padT, 0f, h - padB, 
+            Color.parseColor("#3300B894"), Color.TRANSPARENT, Shader.TileMode.CLAMP)
+        canvas.drawPath(pathF, paintFillPago)
+        canvas.drawPath(pathP, paintLinePago)
 
-        val gradient = LinearGradient(0f, paddingTop, 0f, height - paddingBottom, 
-            Color.parseColor("#4000B894"), Color.TRANSPARENT, Shader.TileMode.CLAMP)
-        paintFillPago.shader = gradient
-        canvas.drawPath(fillPathPago, paintFillPago)
-        canvas.drawPath(pathPago, paintLinePago)
+        // 3. Dibujar Línea de Media (Promedio)
+        averagePago?.let { avg ->
+            val y = h - padB - ((avg - bot) / range * cH)
+            canvas.drawLine(padL, y, w - padR, y, paintAvgLine)
+            paintText.textAlign = Paint.Align.RIGHT
+            canvas.drawText(String.format(Locale.getDefault(), "AVG: $%.1f", avg), w - padR, y - 8f, paintText)
+        }
 
+        // 4. Dibujar Etiquetas Eje Y
         paintText.textAlign = Paint.Align.LEFT
-        paintText.textSize = 24f
-        canvas.drawText(String.format(Locale.getDefault(), "$%.0f", effectiveMax), 10f, paddingTop + 10f, paintText)
-        canvas.drawText(String.format(Locale.getDefault(), "$%.0f", effectiveMin), 10f, height - paddingBottom, paintText)
+        canvas.drawText(String.format(Locale.getDefault(), "$%.0f", top), 5f, padT + 20f, paintText)
+        canvas.drawText(String.format(Locale.getDefault(), "$%.0f", bot), 5f, h - padB, paintText)
+
+        // 5. DIBUJAR ETIQUETAS EJE X (MESES) - SE DIBUJAN AL FINAL PARA QUE NADA LAS TAPE
+        paintText.textAlign = Paint.Align.CENTER
+        paintText.textSize = 20f
+        for (i in dataLabels.indices) {
+            if (dataLabels.isNotEmpty() && i < dataLabels.size && dataLabels[i].isNotEmpty()) {
+                val x = padL + i * step
+                // Dibujamos de forma horizontal para que sea simple y claro
+                canvas.drawText(dataLabels[i], x, h - 20f, paintText)
+            }
+        }
     }
 }
