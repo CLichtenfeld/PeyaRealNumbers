@@ -28,5 +28,9 @@ data class SesionEntity(
     val duracionSeg: Long = 0,
     val ganancia: Int = 0,
     val propina: Int = 0,
-    val tiempoVacioSeg: Long = 0 // NUEVO CAMPO
+    val cantPedidos: Int = 0,
+    val tiempoVacioSeg: Long = 0,
+    val joulesTotales: Double = 0.0,
+    val joulesPlanoTotales: Double = 0.0,
+    val esProcesada: Boolean = false // Flag para post-cálculo topográfico
 )

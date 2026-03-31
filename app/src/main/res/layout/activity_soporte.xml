@@ -7,6 +7,7 @@
     android:background="@color/app_background"
     android:fitsSystemWindows="true">
 
+    <!-- HEADER -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -29,8 +30,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:text="SOPORTE Y AYUDA"
-            android:textSize="18sp"
+            android:text="PEYALOCHE RIDER"
+            android:textSize="22sp"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:letterSpacing="0.1"/>
@@ -47,15 +48,15 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- CONTACTO DESARROLLADOR -->
+            <!-- SOBRE EL PROYECTO -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:layout_marginBottom="20dp"
+                android:layout_marginBottom="16dp"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="2dp"
-                app:cardBackgroundColor="@color/app_surface">
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#E3F2FD">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -66,53 +67,116 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Contacto del Desarrollador"
-                        android:textSize="14sp"
+                        android:text="Hecho en Bariloche"
+                        android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textColor="@color/accent_green"
-                        android:layout_marginBottom="8dp"/>
+                        android:textColor="#0D47A1"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="¿Tienes dudas técnicas o problemas con la app?"
-                        android:textSize="13sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginBottom="12dp"/>
+                        android:text="Soy un Rider de Bariloche con varios años recorriendo estas calles en bicicleta. Al igual que vos, conozco el esfuerzo de subir las pendientes del Alto bajo el sol o la nieve. Peyaloche nació para volcar mi experiencia y estudios en una herramienta que nos sirva de verdad, aportando los datos reales que las apps oficiales ignoran para que nuestra comunidad trabaje mejor informada."
+                        android:textSize="14sp"
+                        android:textColor="#1565C0"
+                        android:layout_marginTop="8dp"
+                        android:lineSpacingExtra="2dp"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
 
-                    <TextView
-                        android:id="@+id/tvEmailSoporte"
+            <!-- CONTACTO DIRECTO -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CONTACTO DIRECTO"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_secondary"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="8dp"
+                android:letterSpacing="0.1"/>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/app_surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/btnEmailContainer"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="📧 soporte.peya@example.com"
-                        android:textSize="15sp"
-                        android:textColor="@color/text_primary"
-                        android:paddingVertical="12dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
-                        android:focusable="true"/>
+                        android:focusable="true">
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/ic_dialog_email"
+                            app:tint="@color/text_primary"/>
+                        <TextView
+                            android:id="@+id/tvEmailSoporte"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="lichchris@protonmail.com"
+                            android:textSize="15sp"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginStart="16dp"/>
+                    </LinearLayout>
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#10000000"
-                        android:layout_marginVertical="4dp"/>
+                        android:background="#10000000" />
 
-                    <TextView
-                        android:id="@+id/tvWappSoporte"
+                    <LinearLayout
+                        android:id="@+id/btnWappContainer"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="💬 WhatsApp Soporte"
-                        android:textSize="15sp"
-                        android:textColor="@color/text_primary"
-                        android:paddingVertical="12dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
                         android:background="?attr/selectableItemBackground"
                         android:clickable="true"
-                        android:focusable="true"/>
+                        android:focusable="true">
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:src="@android:drawable/stat_notify_chat"
+                            app:tint="@color/accent_green"/>
+                        <TextView
+                            android:id="@+id/tvWappSoporte"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="WhatsApp (+54 294 416-5330)"
+                            android:textSize="15sp"
+                            android:textColor="@color/text_primary"
+                            android:layout_marginStart="16dp"/>
+                    </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- FORMULARIO SUGERENCIAS -->
+            <!-- SUGERENCIAS -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="DÉJANOS TU SUGERENCIA"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_secondary"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="8dp"
+                android:letterSpacing="0.1"/>
+
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -127,61 +191,63 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Sugerencias y Críticas"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/accent_green"
-                        android:layout_marginBottom="8dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Tu opinión nos ayuda a mejorar la precisión de Peya Real Numbers."
-                        android:textSize="13sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginBottom="12dp"/>
-
                     <EditText
                         android:id="@+id/etSugerencia"
                         android:layout_width="match_parent"
-                        android:layout_height="120dp"
-                        android:background="@drawable/btn_rounded"
-                        android:backgroundTint="#10000000"
-                        android:gravity="top"
-                        android:hint="Escribe aquí tu mensaje..."
-                        android:padding="12dp"
+                        android:layout_height="wrap_content"
+                        android:hint="Escribe aquí tu sugerencia o feedback..."
                         android:textSize="14sp"
                         android:textColor="@color/text_primary"
-                        android:inputType="textMultiLine" />
+                        android:background="@android:color/transparent"
+                        android:minLines="5"
+                        android:gravity="top"
+                        android:inputType="textMultiLine"/>
 
                     <Button
                         android:id="@+id/btnEnviarSugerencia"
                         android:layout_width="match_parent"
-                        android:layout_height="54dp"
-                        android:layout_marginTop="16dp"
-                        android:text="ENVIAR MENSAJE"
-                        android:textStyle="bold"
+                        android:layout_height="56dp"
+                        android:layout_marginTop="12dp"
+                        android:text="Enviar Sugerencia"
+                        android:textAllCaps="false"
+                        android:background="@drawable/btn_rounded"
                         android:backgroundTint="@color/accent_green"
-                        android:textColor="@color/white"
-                        app:cornerRadius="12dp"/>
+                        android:textColor="@android:color/white"
+                        android:textStyle="bold"
+                        android:textSize="16sp"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- INFO APP -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Peya Real Numbers v1.0\nDesarrollado para Riders"
+                android:text="Desarrollado por y para Riders"
+                android:gravity="center"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="20dp"
+                android:textStyle="italic"
+                android:alpha="0.8"/>
+
+            <ImageView
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_gravity="center"
+                android:layout_marginTop="12dp"
+                android:src="@mipmap/ic_launcher_round"
+                android:alpha="0.8"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Peyaloche Rider v1.1"
                 android:gravity="center"
                 android:textSize="12sp"
                 android:textColor="@color/text_secondary"
-                android:layout_marginTop="20dp"
-                android:layout_marginBottom="40dp"/>
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="60dp"
+                android:textStyle="bold"/>
 
         </LinearLayout>
     </ScrollView>
-
 </LinearLayout>

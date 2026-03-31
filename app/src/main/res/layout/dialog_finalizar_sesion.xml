@@ -4,7 +4,6 @@
     android:layout_height="wrap_content">
 
     <LinearLayout
-        android:id="@+id/layoutEditContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -13,86 +12,77 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Nombre de la jornada"
-            android:textSize="14sp"
-            android:textColor="#636E72"
+            android:text="¡Jornada Finalizada!"
+            android:textSize="20sp"
             android:textStyle="bold"
-            android:layout_marginBottom="4dp"/>
-
-        <EditText
-            android:id="@+id/etEditNombre"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Ej: Turno Mañana"
-            android:inputType="textCapSentences"
-            android:textSize="18sp"
-            android:padding="12dp"
-            android:background="@android:drawable/edit_text"
-            android:selectAllOnFocus="true"
+            android:textColor="@color/text_primary"
             android:layout_marginBottom="16dp"/>
 
+        <!-- GANANCIA -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Ganancia ($)"
-            android:textSize="14sp"
-            android:textColor="#636E72"
+            android:text="Ganancia Neta ($)"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
             android:textStyle="bold"
             android:layout_marginBottom="4dp"/>
 
         <EditText
-            android:id="@+id/etEditGanancia"
+            android:id="@+id/etFinalizarGanancia"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="0"
             android:inputType="number"
-            android:textSize="20sp"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="#00B894"
+            android:textColor="@color/accent_green"
             android:padding="12dp"
             android:background="@android:drawable/edit_text"
             android:selectAllOnFocus="true"
             android:layout_marginBottom="16dp"/>
 
+        <!-- PROPINA -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Propina ($)"
-            android:textSize="14sp"
-            android:textColor="#636E72"
+            android:text="Propina Total ($)"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
             android:textStyle="bold"
             android:layout_marginBottom="4dp"/>
 
         <EditText
-            android:id="@+id/etEditPropina"
+            android:id="@+id/etFinalizarPropina"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="0"
             android:inputType="number"
-            android:textSize="20sp"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:textColor="#00B894"
+            android:textColor="@color/accent_green"
             android:padding="12dp"
             android:background="@android:drawable/edit_text"
             android:selectAllOnFocus="true"
             android:layout_marginBottom="16dp"/>
 
+        <!-- PEDIDOS -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Cantidad de Pedidos"
-            android:textSize="14sp"
-            android:textColor="#636E72"
+            android:textSize="13sp"
+            android:textColor="@color/text_secondary"
             android:textStyle="bold"
             android:layout_marginBottom="4dp"/>
 
         <EditText
-            android:id="@+id/etEditPedidos"
+            android:id="@+id/etFinalizarPedidos"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="0"
             android:inputType="number"
-            android:textSize="20sp"
+            android:textSize="22sp"
             android:textStyle="bold"
             android:textColor="@color/text_primary"
             android:padding="12dp"

@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/app_background"
+    android:fitsSystemWindows="true">
+
+    <!-- HEADER -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="32dp"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="16dp">
+
+        <ImageButton
+            android:id="@+id/btnBackConfig"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/btn_rounded"
+            android:backgroundTint="@color/app_surface"
+            android:elevation="4dp"
+            android:src="@android:drawable/ic_menu_revert"
+            android:padding="12dp"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="PERFIL DEL RIDER"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:letterSpacing="0.1"/>
+    </RelativeLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingHorizontal="20dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PERSONALIZACIÓN DE DATOS"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_secondary"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="16dp"
+                android:letterSpacing="0.1"/>
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/app_surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <!-- PESO RIDER -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Peso del Rider (kg)"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tu peso actual con ropa y mochila."
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginBottom="8dp"/>
+                    <EditText
+                        android:id="@+id/etPesoRider"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Ej: 80"
+                        android:inputType="number"
+                        android:textSize="18sp"
+                        android:padding="12dp"
+                        android:background="@android:drawable/edit_text"
+                        android:selectAllOnFocus="true"
+                        android:layout_marginBottom="24dp"/>
+
+                    <!-- PESO BICI -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Peso del Vehículo (kg)"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Bici, Moto o E-Bike."
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:layout_marginBottom="8dp"/>
+                    <EditText
+                        android:id="@+id/etPesoBici"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Ej: 15"
+                        android:inputType="number"
+                        android:textSize="18sp"
+                        android:padding="12dp"
+                        android:background="@android:drawable/edit_text"
+                        android:selectAllOnFocus="true"
+                        android:layout_marginBottom="24dp"/>
+
+                    <!-- TIPO DE VEHICULO -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tipo de Vehículo"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"
+                        android:layout_marginBottom="8dp"/>
+
+                    <RadioGroup
+                        android:id="@+id/rgTipoVehiculo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+                        <RadioButton
+                            android:id="@+id/rbBici"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Bicicleta / MTB"
+                            android:textSize="14sp"
+                            android:padding="8dp"/>
+                        <RadioButton
+                            android:id="@+id/rbEBike"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="E-Bike (Bici Eléctrica)"
+                            android:textSize="14sp"
+                            android:padding="8dp"/>
+                        <RadioButton
+                            android:id="@+id/rbMoto"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Moto / Scooter"
+                            android:textSize="14sp"
+                            android:padding="8dp"/>
+                    </RadioGroup>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Estos datos se usan para calcular la potencia (Watts) y las calorías quemadas de forma precisa basándose en las pendientes de Bariloche."
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:alpha="0.8"/>
+
+            <Button
+                android:id="@+id/btnSaveConfig"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="40dp"
+                android:background="@drawable/btn_rounded"
+                android:text="GUARDAR PERFIL"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:backgroundTint="@color/accent_green"
+                android:textColor="@color/white"/>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

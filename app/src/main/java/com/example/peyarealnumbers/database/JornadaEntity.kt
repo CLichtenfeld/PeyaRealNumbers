@@ -11,7 +11,11 @@ data class JornadaEntity(
     val desnivelAcumulado: Double = 0.0,
     val gananciaTotal: Int = 0,
     val propinaTotal: Int = 0,
+    val pedidosTotal: Int = 0,
     val tiempoTotalSegundos: Long = 0,
     val cantSesiones: Int = 0,
-    val tiempoVacioTotalSeg: Long = 0 // NUEVO CAMPO
+    val tiempoVacioTotalSeg: Long = 0,
+    val joulesTotales: Double = 0.0,
+    val joulesPlanoTotales: Double = 0.0,
+    val esProcesada: Boolean = false // Indica si el día fue corregido topográficamente
 )

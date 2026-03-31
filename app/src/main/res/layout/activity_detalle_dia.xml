@@ -29,14 +29,28 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:orientation="vertical">
-                <TextView
-                    android:id="@+id/tvDetalleFecha"
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Lunes, 27/03/26"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary"/>
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    <TextView
+                        android:id="@+id/tvDetalleFecha"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Lunes, 27/03/26"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary"/>
+                    <ImageView
+                        android:id="@+id/ivVerifiedBadge"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="8dp"
+                        android:src="@android:drawable/checkbox_on_background"
+                        app:tint="@color/accent_green"
+                        android:visibility="gone"/>
+                </LinearLayout>
                 <TextView
                     android:id="@+id/tvDetalleTiempoTotal"
                     android:layout_width="wrap_content"
@@ -61,16 +75,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:weightSum="3"
-            android:paddingHorizontal="12dp"
+            android:weightSum="4"
+            android:paddingHorizontal="8dp"
             android:paddingBottom="16dp">
 
-            <!-- Km Real -->
+            <!-- Esfuerzo (kcal) - PRIORIDAD #1 -->
             <androidx.cardview.widget.CardView
                 android:layout_width="0dp"
                 android:layout_height="100dp"
                 android:layout_weight="1"
-                android:layout_margin="4dp"
+                android:layout_margin="2dp"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="3dp">
                 <LinearLayout
@@ -78,8 +92,42 @@
                     android:layout_height="match_parent"
                     android:orientation="vertical"
                     android:gravity="center"
-                    android:padding="8dp"
-                    android:background="@color/card_real_km_bg">
+                    android:padding="4dp"
+                    android:background="#FFF3E0">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Kcal"
+                        android:textSize="10sp"
+                        android:textStyle="bold"
+                        android:textColor="#E65100"/>
+                    <TextView
+                        android:id="@+id/tvDetalleTotalKcal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#EF6C00"
+                        android:layout_marginTop="4dp"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Esfuerzo Extra - PRIORIDAD #2 -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="0dp"
+                android:layout_height="100dp"
+                android:layout_weight="1"
+                android:layout_margin="2dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="3dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="4dp"
+                    android:background="#FDFEFE">
                     <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content">
@@ -87,26 +135,26 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerInParent="true"
-                            android:text="Km Real"
-                            android:textSize="11sp"
+                            android:text="Esf. Extra"
+                            android:textSize="10sp"
                             android:textStyle="bold"
-                            android:textColor="@color/card_real_km_text"/>
+                            android:textColor="#2C3E50"/>
                         <ImageView
-                            android:id="@+id/ivInfoRealKm"
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
+                            android:id="@+id/ivInfoExtra"
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
                             android:layout_alignParentEnd="true"
                             android:src="@android:drawable/ic_dialog_info"
-                            app:tint="@color/card_real_km_text" />
+                            app:tint="#2C3E50" />
                     </RelativeLayout>
                     <TextView
-                        android:id="@+id/tvDetalleTotalReal"
+                        android:id="@+id/tvDetalleEsfuerzoExtra"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0.0 km"
+                        android:text="+0%"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@color/card_real_km_text"
+                        android:textColor="#E74C3C"
                         android:layout_marginTop="4dp"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
@@ -116,7 +164,7 @@
                 android:layout_width="0dp"
                 android:layout_height="100dp"
                 android:layout_weight="1"
-                android:layout_margin="4dp"
+                android:layout_margin="2dp"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="3dp">
                 <LinearLayout
@@ -124,7 +172,7 @@
                     android:layout_height="match_parent"
                     android:orientation="vertical"
                     android:gravity="center"
-                    android:padding="8dp"
+                    android:padding="4dp"
                     android:background="@color/card_pago_km_bg">
                     <RelativeLayout
                         android:layout_width="match_parent"
@@ -134,13 +182,13 @@
                             android:layout_height="wrap_content"
                             android:layout_centerInParent="true"
                             android:text="$/Km Real"
-                            android:textSize="11sp"
+                            android:textSize="10sp"
                             android:textStyle="bold"
                             android:textColor="@color/card_pago_km_text"/>
                         <ImageView
                             android:id="@+id/ivInfoPagoKm"
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
                             android:layout_alignParentEnd="true"
                             android:src="@android:drawable/ic_dialog_info"
                             app:tint="@color/card_pago_km_text" />
@@ -157,12 +205,12 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Eficiencia -->
+            <!-- Km Real -->
             <androidx.cardview.widget.CardView
                 android:layout_width="0dp"
                 android:layout_height="100dp"
                 android:layout_weight="1"
-                android:layout_margin="4dp"
+                android:layout_margin="2dp"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="3dp">
                 <LinearLayout
@@ -170,8 +218,8 @@
                     android:layout_height="match_parent"
                     android:orientation="vertical"
                     android:gravity="center"
-                    android:padding="8dp"
-                    android:background="@color/card_eficiencia_bg">
+                    android:padding="4dp"
+                    android:background="@color/card_real_km_bg">
                     <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content">
@@ -179,26 +227,26 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerInParent="true"
-                            android:text="Eficiencia"
-                            android:textSize="11sp"
+                            android:text="Km Real"
+                            android:textSize="10sp"
                             android:textStyle="bold"
-                            android:textColor="@color/card_eficiencia_text"/>
+                            android:textColor="@color/card_real_km_text"/>
                         <ImageView
-                            android:id="@+id/ivInfoEficiencia"
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
+                            android:id="@+id/ivInfoRealKm"
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
                             android:layout_alignParentEnd="true"
                             android:src="@android:drawable/ic_dialog_info"
-                            app:tint="@color/card_eficiencia_text" />
+                            app:tint="@color/card_real_km_text" />
                     </RelativeLayout>
                     <TextView
-                        android:id="@+id/tvDetalleEficiencia"
+                        android:id="@+id/tvDetalleTotalReal"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0%"
+                        android:text="0.0 km"
                         android:textSize="18sp"
                         android:textStyle="bold"
-                        android:textColor="@color/card_eficiencia_text"
+                        android:textColor="@color/card_real_km_text"
                         android:layout_marginTop="4dp"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

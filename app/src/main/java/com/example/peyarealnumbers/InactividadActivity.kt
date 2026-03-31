@@ -1,11 +1,13 @@
 package com.example.peyarealnumbers
 
 import android.content.Context
+import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.view.KeyEvent
 import android.view.WindowManager
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
@@ -13,6 +15,8 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.content.Intent
 
 class InactividadActivity : AppCompatActivity() {
+
+    private var ringtone: Ringtone? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,8 +36,8 @@ class InactividadActivity : AppCompatActivity() {
 
         // Hacer ruido y vibrar
         val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        val r = RingtoneManager.getRingtone(applicationContext, notification)
-        r.play()
+        ringtone = RingtoneManager.getRingtone(applicationContext, notification)
+        ringtone?.play()
 
         val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -43,21 +47,42 @@ class InactividadActivity : AppCompatActivity() {
         }
 
         btnVacio.setOnClickListener {
+            detenerAlarma()
             val intent = Intent("ACCION_INACTIVIDAD").apply {
                 putExtra("es_vacio", true)
             }
             LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
-            r.stop()
             finish()
         }
 
         btnLaburo.setOnClickListener {
+            detenerAlarma()
             val intent = Intent("ACCION_INACTIVIDAD").apply {
                 putExtra("es_vacio", false)
             }
             LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
-            r.stop()
             finish()
         }
+    }
+
+    private fun detenerAlarma() {
+        ringtone?.let {
+            if (it.isPlaying) {
+                it.stop()
+            }
+        }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val keyCode = event.keyCode
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            detenerAlarma()
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onDestroy() {
+        detenerAlarma()
+        super.onDestroy()
     }
 }

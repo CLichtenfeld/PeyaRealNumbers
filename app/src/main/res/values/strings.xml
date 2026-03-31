@@ -1,3 +1,15 @@
 <resources>
-    <string name="app_name">Peyaloche Rider</string>
+    <string name="app_name">Peya Real Numbers</string>
+    <string name="status_jornada_curso">Jornada en curso</string>
+    <string name="btn_iniciar_ruta">INICIAR RUTA</string>
+    <string name="btn_finalizar_ruta">FINALIZAR RUTA</string>
+    <string name="notif_title">Peyaloche Rider</string>
+    <string name="notif_content">Ruta activa...</string>
+    <string name="alerta_inactividad_titulo">¿Sigues ahí?</string>
+    <string name="alerta_inactividad_desc">Detectamos que estás detenido. ¿Es tiempo vacío?</string>
+    <string name="btn_trabajando">TRABAJANDO</string>
+    <string name="btn_vacio">TIEMPO VACÍO</string>
+    <string name="error_gps_denied">Permiso de GPS denegado</string>
+    <string name="avg_label">AVG: $%s</string>
+    <string name="sesiones_label">%d jornadas</string>
 </resources>

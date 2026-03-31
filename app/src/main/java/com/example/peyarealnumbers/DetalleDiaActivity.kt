@@ -28,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.peyarealnumbers.database.AppDatabase
+import com.example.peyarealnumbers.utils.FormatUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,24 +53,24 @@ class DetalleDiaActivity : AppCompatActivity() {
     private lateinit var tvTotalReal: TextView
     private lateinit var tvMontoTotal: TextView
     private lateinit var tvPesoPorKm: TextView
-    private lateinit var tvEficiencia: TextView
+    private lateinit var tvEsfuerzoExtra: TextView
+    private lateinit var tvTotalKcal: TextView
     private lateinit var ivInfoRealKm: ImageView
     private lateinit var ivInfoPagoKm: ImageView
-    private lateinit var ivInfoEficiencia: ImageView
+    private lateinit var ivInfoExtra: ImageView
     private lateinit var rvSesiones: RecyclerView
     private lateinit var btnShare: ImageButton
     private lateinit var layoutCapture: LinearLayout
     private lateinit var db: AppDatabase
     private var fechaActual: String = ""
 
-    // Colores modernos con transparencia (80% Alpha = CC)
     private val colores = listOf(
-        Color.parseColor("#CC007AFF"), // Azul iOS
-        Color.parseColor("#CCFF3B30"), // Rojo iOS
-        Color.parseColor("#CC4CD964"), // Verde iOS
-        Color.parseColor("#CCFF9500"), // Naranja
-        Color.parseColor("#CC5856D6"), // Violeta
-        Color.parseColor("#CCAF52DE")  // Púrpura
+        Color.parseColor("#CC007AFF"),
+        Color.parseColor("#CCFF3B30"),
+        Color.parseColor("#CC4CD964"),
+        Color.parseColor("#CCFF9500"),
+        Color.parseColor("#CC5856D6"),
+        Color.parseColor("#CCAF52DE")
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,30 +79,51 @@ class DetalleDiaActivity : AppCompatActivity() {
         setContentView(R.layout.activity_detalle_dia)
 
         db = AppDatabase.getDatabase(this)
+        vincularVistas()
+        
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.setMultiTouchControls(true)
+        map.controller.setZoom(16.0)
+
+        aplicarModoOscuroMapa()
+
+        fechaActual = intent.getStringExtra("fecha") ?: ""
+        configurarFechaCabecera()
+        observarDatosDia(fechaActual)
+
+        configurarListeners()
+    }
+
+    private fun vincularVistas() {
         tvTiempoTotal = findViewById(R.id.tvDetalleTiempoTotal)
         tvFecha = findViewById(R.id.tvDetalleFecha)
         tvTotalPlana = findViewById(R.id.tvDetalleTotalPlana)
         tvTotalReal = findViewById(R.id.tvDetalleTotalReal)
         tvMontoTotal = findViewById(R.id.tvDetalleMontoTotal)
         tvPesoPorKm = findViewById(R.id.tvDetallePesoPorKm)
-        tvEficiencia = findViewById(R.id.tvDetalleEficiencia)
+        tvEsfuerzoExtra = findViewById(R.id.tvDetalleEsfuerzoExtra)
+        tvTotalKcal = findViewById(R.id.tvDetalleTotalKcal)
         ivInfoRealKm = findViewById(R.id.ivInfoRealKm)
         ivInfoPagoKm = findViewById(R.id.ivInfoPagoKm)
-        ivInfoEficiencia = findViewById(R.id.ivInfoEficiencia)
+        ivInfoExtra = findViewById(R.id.ivInfoExtra)
         rvSesiones = findViewById(R.id.rvSesiones)
         map = findViewById(R.id.mapDetalle)
         btnShare = findViewById(R.id.btnShare)
         layoutCapture = findViewById(R.id.layoutCapture)
+    }
 
-        map.setTileSource(TileSourceFactory.MAPNIK)
-        map.setMultiTouchControls(true)
-        map.controller.setZoom(16.0)
+    private fun configurarListeners() {
+        btnShare.setOnClickListener { generarYCompartirReporte() }
+        ivInfoRealKm.setOnClickListener { mostrarInfo("Km Real", "Distancia exacta recorrida considerando variaciones de altitud (3D).") }
+        ivInfoPagoKm.setOnClickListener { mostrarInfo("$/Km Real", "Ganancia neta dividida por kilómetros reales recorridos.") }
+        ivInfoExtra.setOnClickListener { mostrarInfo("Esfuerzo Extra", "Energía adicional gastada debido a las pendientes, comparada con el mismo trayecto en plano.") }
+    }
 
-        // Aplicar modo oscuro al mapa si es necesario
-        aplicarModoOscuroMapa()
+    private fun mostrarInfo(t: String, m: String) {
+        AlertDialog.Builder(this).setTitle(t).setMessage(m).setPositiveButton("OK", null).show()
+    }
 
-        fechaActual = intent.getStringExtra("fecha") ?: ""
-        
+    private fun configurarFechaCabecera() {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val outputFormat = SimpleDateFormat("EEEE, d 'de' MMMM", Locale("es", "ES"))
         tvFecha.text = try {
@@ -110,13 +132,6 @@ class DetalleDiaActivity : AppCompatActivity() {
         } catch (e: Exception) {
             fechaActual
         }
-
-        observarDatosDia(fechaActual)
-
-        btnShare.setOnClickListener { generarYCompartirReporte() }
-        ivInfoRealKm.setOnClickListener { mostrarInfoRealKm() }
-        ivInfoPagoKm.setOnClickListener { mostrarInfoPagoKm() }
-        ivInfoEficiencia.setOnClickListener { mostrarInfoEficiencia() }
     }
 
     private fun aplicarModoOscuroMapa() {
@@ -128,29 +143,59 @@ class DetalleDiaActivity : AppCompatActivity() {
                 0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
                 0.0f, 0.0f, 0.0f, 1.0f, 0.0f
             ))
-            val destination = ColorMatrix()
-            val lr = 0.213f; val lg = 0.715f; val lb = 0.072f
-            val grayscaleMatrix = ColorMatrix(floatArrayOf(
-                lr, lg, lb, 0f, 0f,
-                lr, lg, lb, 0f, 0f,
-                lr, lg, lb, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f
-            ))
-            destination.setConcat(inverseMatrix, grayscaleMatrix)
             map.overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(inverseMatrix))
         }
     }
 
-    private fun mostrarInfoRealKm() {
-        AlertDialog.Builder(this).setTitle("¿Qué es el Km Real?").setMessage("Es la distancia exacta recorrida considerando las variaciones de altitud (3D).").setPositiveButton("Entendido", null).show()
-    }
+    private fun observarDatosDia(fecha: String) {
+        lifecycleScope.launch {
+            db.jornadaDao().getSesionesDelDia(fecha).collect { sesiones ->
+                if (sesiones.isEmpty()) { finish(); return@collect }
+                
+                var dPlana = 0.0; var dReal = 0.0; var ganancia = 0; var propina = 0; var tiempo = 0L; var vTotal = 0L; var pedidos = 0
+                var joules = 0.0; var joulesPlano = 0.0
+                
+                for (s in sesiones) {
+                    dPlana += s.distanciaPlanaM; dReal += s.distanciaRealM
+                    ganancia += s.ganancia; propina += s.propina; tiempo += s.duracionSeg
+                    vTotal += s.tiempoVacioSeg; joules += s.joulesTotales; joulesPlano += s.joulesPlanoTotales
+                    pedidos += s.cantPedidos
+                }
+                
+                val totalPesos = ganancia + propina
+                tvTotalPlana.text = String.format("Oficial: %.2fkm", dPlana / 1000.0)
+                tvTotalReal.text = String.format("%.2f km", dReal / 1000.0)
+                tvMontoTotal.text = "$$totalPesos"
+                
+                val promedioPedido = if (pedidos > 0) totalPesos / pedidos else 0
+                tvTiempoTotal.text = "Tiempo: ${FormatUtils.formatElapsedTime(tiempo)} | Pedidos: $pedidos ($$promedioPedido/u)"
+                
+                tvPesoPorKm.text = if (dReal > 0) String.format("$%.1f", totalPesos / (dReal / 1000.0)) else "$0"
+                tvTotalKcal.text = (joules / 4184.0).toInt().toString()
+                
+                val extraFactor = if (joulesPlano > 10) ((joules / joulesPlano) - 1.0) * 100.0 else 0.0
+                tvEsfuerzoExtra.text = String.format("+%.0f%%", extraFactor)
 
-    private fun mostrarInfoPagoKm() {
-        AlertDialog.Builder(this).setTitle("Pago por Km Real").setMessage("Representa tu ganancia neta dividida por los kilómetros reales.").setPositiveButton("Entendido", null).show()
-    }
+                val listaItems = sesiones.mapIndexed { index, s ->
+                    SesionItem(
+                        dbId = s.id,
+                        numero = s.numeroSesion,
+                        nombre = s.nombrePersonalizado ?: "Jornada ${s.numeroSesion}",
+                        distancia = String.format("%.2f km", s.distanciaRealM / 1000.0),
+                        ganancia = s.ganancia,
+                        propina = s.propina,
+                        pedidos = s.cantPedidos,
+                        color = colores[index % colores.size],
+                        horario = "${s.horaInicio} - ${s.horaFin ?: "..."}",
+                        tiempoVacioStr = "Vacío: ${FormatUtils.formatElapsedTime(s.tiempoVacioSeg)}"
+                    )
+                }
+                rvSesiones.layoutManager = LinearLayoutManager(this@DetalleDiaActivity)
+                rvSesiones.adapter = SesionesAdapter(listaItems) { mostrarOpcionesSesion(it) }
 
-    private fun mostrarInfoEficiencia() {
-        AlertDialog.Builder(this).setTitle("Eficiencia de Auditoría").setMessage("Indica el porcentaje de distancia adicional recorrida por pendientes y curvas.").setPositiveButton("Entendido", null).show()
+                dibujarRutasBackground(File(getExternalFilesDir(null), "jornada_$fecha.gpx"))
+            }
+        }
     }
 
     private fun generarYCompartirReporte() {
@@ -172,35 +217,8 @@ class DetalleDiaActivity : AppCompatActivity() {
         } catch (e: Exception) { e.printStackTrace() }
     }
 
-    private fun observarDatosDia(fecha: String) {
-        lifecycleScope.launch {
-            db.jornadaDao().getSesionesDelDia(fecha).collect { sesiones ->
-                if (sesiones.isEmpty()) { finish(); return@collect }
-                var dPlana = 0.0; var dReal = 0.0; var ganancia = 0; var propina = 0; var tiempo = 0L
-                for (s in sesiones) {
-                    dPlana += s.distanciaPlanaM; dReal += s.distanciaRealM
-                    ganancia += s.ganancia; propina += s.propina; tiempo += s.duracionSeg
-                }
-                tvTotalPlana.text = String.format("Oficial: %.2fkm", dPlana / 1000.0)
-                tvTotalReal.text = String.format("%.2f km", dReal / 1000.0)
-                tvMontoTotal.text = "$${ganancia + propina}"
-                tvTiempoTotal.text = String.format("Tiempo: %02d:%02d:%02d", tiempo / 3600, (tiempo % 3600) / 60, tiempo % 60)
-                tvPesoPorKm.text = if (dReal > 0) String.format("$%.1f", (ganancia + propina) / (dReal / 1000.0)) else "$0"
-                tvEficiencia.text = if (dPlana > 0) String.format("%.1f%%", ((dReal - dPlana) / dPlana) * 100) else "0%"
-
-                val listaItems = sesiones.mapIndexed { index, s ->
-                    SesionItem(s.id, s.numeroSesion, s.nombrePersonalizado ?: "Jornada ${s.numeroSesion}", String.format("%.2f km", s.distanciaRealM / 1000.0), s.ganancia, s.propina, colores[index % colores.size])
-                }
-                rvSesiones.layoutManager = LinearLayoutManager(this@DetalleDiaActivity)
-                rvSesiones.adapter = SesionesAdapter(listaItems) { mostrarOpcionesSesion(it) }
-
-                val archivoGpx = File(getExternalFilesDir(null), "jornada_$fecha.gpx")
-                if (archivoGpx.exists()) dibujarRutasBackground(archivoGpx)
-            }
-        }
-    }
-
     private fun dibujarRutasBackground(file: File) {
+        if (!file.exists()) return
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val gpxContent = file.readText()
@@ -304,13 +322,31 @@ class DetalleDiaActivity : AppCompatActivity() {
         val etNombre = view.findViewById<EditText>(R.id.etEditNombre)
         val etGanancia = view.findViewById<EditText>(R.id.etEditGanancia)
         val etPropina = view.findViewById<EditText>(R.id.etEditPropina)
+        
+        // Agregar campo de pedidos en el diálogo de edición si el contenedor existe
+        var etPedidos: EditText? = null
+        val container = view.findViewById<LinearLayout>(R.id.layoutEditContainer) ?: (view as? ViewGroup)
+        if (container is ViewGroup) {
+            etPedidos = EditText(this).apply {
+                hint = "Cantidad de Pedidos"
+                setText(item.pedidos.toString())
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                setSelectAllOnFocus(true)
+                textSize = 20f
+                setPadding(12, 12, 12, 12)
+            }
+            container.addView(etPedidos)
+        }
+
         etNombre.setText(if (item.nombre.startsWith("Jornada ")) "" else item.nombre)
         etGanancia.setText(item.ganancia.toString()); etPropina.setText(item.propina.toString())
+        
         AlertDialog.Builder(this).setTitle("Editar").setView(view).setPositiveButton("Guardar") { _, _ ->
             val g = etGanancia.text.toString().toIntOrNull() ?: 0
             val p = etPropina.text.toString().toIntOrNull() ?: 0
+            val c = etPedidos?.text.toString().toIntOrNull() ?: item.pedidos
             val n = etNombre.text.toString().ifBlank { null }
-            lifecycleScope.launch { db.jornadaDao().editarSesion(item.dbId, g, p, n, fechaActual) }
+            lifecycleScope.launch { db.jornadaDao().editarSesion(item.dbId, g, p, c, n, fechaActual) }
         }.setNegativeButton("Cancelar", null).show()
     }
 
@@ -320,24 +356,39 @@ class DetalleDiaActivity : AppCompatActivity() {
         }.setNegativeButton("Cancelar", null).show()
     }
 
-    data class SesionItem(val dbId: Long, val numero: Int, val nombre: String, val distancia: String, val ganancia: Int, val propina: Int, val color: Int)
+    data class SesionItem(
+        val dbId: Long, 
+        val numero: Int, 
+        val nombre: String, 
+        val distancia: String, 
+        val ganancia: Int, 
+        val propina: Int,
+        val pedidos: Int,
+        val color: Int,
+        val horario: String,
+        val tiempoVacioStr: String
+    )
 
     class SesionesAdapter(private val sesiones: List<SesionItem>, private val onLongClick: (SesionItem) -> Unit) : RecyclerView.Adapter<SesionesAdapter.ViewHolder>() {
         class ViewHolder(v: View) : RecyclerView.ViewHolder(v) {
-            val tvId: TextView = v.findViewById(R.id.tvSesionId); val tvDist: TextView = v.findViewById(R.id.tvSesionDist)
-            val tvPlata: TextView = v.findViewById(R.id.tvSesionPlata); val viewColor: View = v.findViewById(R.id.viewSesionColor)
+            val tvId: TextView = v.findViewById(R.id.tvSesionId)
+            val tvDist: TextView = v.findViewById(R.id.tvSesionDist)
+            val tvPlata: TextView = v.findViewById(R.id.tvSesionPlata)
+            val tvPedidos: TextView = v.findViewById(R.id.tvSesionPedidos)
+            val viewColor: View = v.findViewById(R.id.viewSesionColor)
+            val tvHorario: TextView = v.findViewById(R.id.tvSesionHorario)
+            val tvVacio: TextView = v.findViewById(R.id.tvSesionVacio)
         }
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder = ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_sesion, parent, false))
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = sesiones[position]
-            holder.tvId.text = item.nombre; holder.tvDist.text = item.distancia; holder.tvPlata.text = "$${item.ganancia + item.propina}"
+            holder.tvId.text = item.nombre
+            holder.tvHorario.text = item.horario
+            holder.tvDist.text = item.distancia
+            holder.tvPlata.text = "$${item.ganancia + item.propina}"
+            holder.tvPedidos.text = "${item.pedidos} pedidos"
+            holder.tvVacio.text = item.tiempoVacioStr
             holder.viewColor.setBackgroundColor(item.color)
-            
-            // Ayuda visual al tocar simple
-            holder.itemView.setOnClickListener {
-                Toast.makeText(it.context, "Mantenga presionado para editar", Toast.LENGTH_SHORT).show()
-            }
-            
             holder.itemView.setOnLongClickListener { onLongClick(item); true }
         }
         override fun getItemCount() = sesiones.size

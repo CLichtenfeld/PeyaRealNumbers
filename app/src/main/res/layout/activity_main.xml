@@ -50,7 +50,7 @@
         android:paddingBottom="32dp"
         android:elevation="20dp">
 
-        <!-- FILA PRINCIPAL: VELOCIDAD Y RITMO -->
+        <!-- FILA PRINCIPAL: VELOCIDAD Y DISTANCIA PEYA -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -101,7 +101,7 @@
                     android:layout_height="match_parent"
                     android:orientation="vertical"
                     android:gravity="center"
-                    android:background="@color/card_pace_bg">
+                    android:background="#E3F2FD">
                     <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content">
@@ -109,53 +109,64 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_centerInParent="true"
-                            android:text="Ritmo (min/km)"
+                            android:text="Km Peya (Plano)"
                             android:textSize="11sp"
-                            android:textColor="@color/text_secondary"
+                            android:textColor="#0D47A1"
                             android:textStyle="bold"/>
                         <ImageView
-                            android:id="@+id/ivInfoPace"
+                            android:id="@+id/ivInfoKmPeya"
                             android:layout_width="14dp"
                             android:layout_height="14dp"
                             android:layout_alignParentEnd="true"
                             android:layout_marginEnd="8dp"
                             android:src="@android:drawable/ic_dialog_info"
-                            app:tint="@color/text_secondary" />
+                            app:tint="#0D47A1" />
                     </RelativeLayout>
                     <TextView
-                        android:id="@+id/tvPace"
+                        android:id="@+id/tvTotalPlana"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0:00"
-                        android:textSize="32sp"
+                        android:text="0.00 km"
+                        android:textSize="28sp"
                         android:textStyle="bold"
-                        android:textColor="@color/text_primary"/>
+                        android:textColor="#1565C0"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>
 
-        <!-- FILA SECUNDARIA: KM PEYA, ALTITUD Y TIEMPO VACÍO -->
+        <!-- FILA SECUNDARIA: ALTITUD Y TIEMPO VACÍO -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:weightSum="3"
+            android:weightSum="2"
             android:layout_marginBottom="12dp">
 
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Km Peya" android:textSize="11sp" android:textColor="@color/text_secondary"/>
-                <TextView android:id="@+id/tvTotalPlana" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0.00 km" android:textSize="18sp" android:textStyle="bold" android:textColor="@color/text_primary"/>
-            </LinearLayout>
-
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Altitud" android:textSize="11sp" android:textColor="@color/text_secondary"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Altitud Actual" android:textSize="11sp" android:textColor="@color/text_secondary"/>
                 <TextView android:id="@+id/tvCurrentAlt" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 m" android:textSize="18sp" android:textStyle="bold" android:textColor="@color/text_primary"/>
             </LinearLayout>
 
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center"
-                android:background="@color/card_vacio_bg" android:paddingVertical="4dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="T. Vacío" android:textSize="11sp" android:textColor="#E65100" android:textStyle="bold"/>
-                <TextView android:id="@+id/tvTiempoVacio" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="00:00:00" android:textSize="18sp" android:textStyle="bold" android:textColor="#E65100"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:gravity="center">
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_centerInParent="true"
+                        android:text="Tiempo de Vacío"
+                        android:textSize="11sp"
+                        android:textColor="@color/text_secondary"/>
+                    <ImageView
+                        android:id="@+id/ivInfoVacio"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_alignParentEnd="true"
+                        android:src="@android:drawable/ic_dialog_info"
+                        app:tint="@color/text_secondary" />
+                </RelativeLayout>
+                <TextView android:id="@+id/tvTiempoVacio" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="00:00:00" android:textSize="18sp" android:textStyle="bold" android:textColor="@color/text_primary"/>
             </LinearLayout>
         </LinearLayout>
 
@@ -163,7 +174,7 @@
             android:id="@+id/btnToggle"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="24dp"
             android:background="@drawable/btn_rounded"
             android:text="INICIAR RUTA"
             android:textSize="18sp"
@@ -180,8 +191,9 @@
         android:layout_below="@id/header"
         android:layout_above="@id/footer" />
 
+    <!-- BOTONES FLOTANTES -->
     <ImageButton
-        android:id="@+id/btnHistory"
+        android:id="@+id/btnMenu"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_alignParentTop="true"
@@ -191,7 +203,7 @@
         android:elevation="10dp"
         android:background="@drawable/btn_rounded"
         android:backgroundTint="@color/app_surface"
-        android:src="@android:drawable/ic_menu_recent_history"
+        android:src="@android:drawable/ic_menu_sort_by_size"
         android:padding="10dp"
         app:tint="@color/text_primary"/>
 

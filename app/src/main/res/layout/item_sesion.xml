@@ -19,7 +19,7 @@
         <View
             android:id="@+id/viewSesionColor"
             android:layout_width="6dp"
-            android:layout_height="32dp"
+            android:layout_height="40dp"
             android:layout_marginEnd="16dp"
             android:background="#0000FF" />
 
@@ -39,6 +39,15 @@
                 android:textColor="@color/text_primary"/>
 
             <TextView
+                android:id="@+id/tvSesionHorario"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="12:00 - 14:30"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                android:textStyle="italic" />
+
+            <TextView
                 android:id="@+id/tvSesionDist"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -48,14 +57,39 @@
                 android:layout_marginTop="2dp"/>
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/tvSesionPlata"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="$1500"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/accent_green" />
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <TextView
+                android:id="@+id/tvSesionPlata"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="$1500"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/accent_green" />
+
+            <TextView
+                android:id="@+id/tvSesionPedidos"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 pedidos"
+                android:textSize="11sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginTop="2dp"/>
+
+            <TextView
+                android:id="@+id/tvSesionVacio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Vacío: 00:15:00"
+                android:textSize="11sp"
+                android:textColor="#E65100"
+                android:textStyle="bold" />
+        </LinearLayout>
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>

@@ -48,6 +48,7 @@
         <activity android:name=".HistorialActivity" />
         <activity android:name=".DetalleDiaActivity" />
         <activity android:name=".SoporteActivity" />
+        <activity android:name=".ConfigRiderActivity" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

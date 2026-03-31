@@ -26,8 +26,8 @@ class SoporteActivity : AppCompatActivity() {
 
         tvEmail.setOnClickListener {
             val intent = Intent(Intent.ACTION_SENDTO).apply {
-                data = Uri.parse("mailto:soporte.peya@example.com")
-                putExtra(Intent.EXTRA_SUBJECT, "Soporte Peya Real Numbers")
+                data = Uri.parse("mailto:lichchris@protonmail.com")
+                putExtra(Intent.EXTRA_SUBJECT, "Consulta Peyaloche Rider")
             }
             try {
                 startActivity(Intent.createChooser(intent, "Enviar correo"))
@@ -37,7 +37,7 @@ class SoporteActivity : AppCompatActivity() {
         }
 
         tvWapp.setOnClickListener {
-            val url = "https://api.whatsapp.com/send?phone=123456789&text=Hola! Tengo una consulta sobre la app Peya Real Numbers"
+            val url = "https://api.whatsapp.com/send?phone=542944165330&text=Hola! Soy un Rider, tengo una consulta sobre la app Peyaloche"
             val intent = Intent(Intent.ACTION_VIEW)
             intent.data = Uri.parse(url)
             startActivity(intent)

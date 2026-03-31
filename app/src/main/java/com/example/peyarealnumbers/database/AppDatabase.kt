@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [JornadaEntity::class, SesionEntity::class], version = 3, exportSchema = false)
+@Database(entities = [JornadaEntity::class, SesionEntity::class], version = 7, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun jornadaDao(): JornadaDao
 
@@ -20,7 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "peya_real_numbers_db"
                 )
-                .fallbackToDestructiveMigration() // Borra la DB vieja si cambia el esquema
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

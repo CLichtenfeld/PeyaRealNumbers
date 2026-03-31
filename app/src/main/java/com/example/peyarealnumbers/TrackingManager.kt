@@ -16,12 +16,23 @@ object TrackingManager {
         )
     }
 
-    fun updateMetrics(speed: Double, diffPercent: Int, altitude: Double, pace: String) {
+    fun updateMetrics(
+        speed: Double, 
+        diffPercent: Int, 
+        altitude: Double, 
+        pace: String, 
+        powerWatts: Int = 0, 
+        totalKcal: Double = 0.0,
+        effortFactor: Int = 100
+    ) {
         _uiState.value = _uiState.value.copy(
             speed = speed,
             diffPercent = diffPercent,
             altitude = altitude,
-            pace = pace
+            pace = pace,
+            powerWatts = powerWatts,
+            totalKcal = totalKcal,
+            effortFactor = effortFactor
         )
     }
 
@@ -38,7 +49,10 @@ object TrackingManager {
                 speed = 0.0,
                 diffPercent = 0,
                 altitude = 0.0,
-                pace = "0:00"
+                pace = "0:00",
+                powerWatts = 0,
+                totalKcal = 0.0,
+                effortFactor = 100
             )
         }
     }
@@ -51,6 +65,9 @@ object TrackingManager {
         val speed: Double = 0.0,
         val diffPercent: Int = 0,
         val altitude: Double = 0.0,
-        val pace: String = "0:00"
+        val pace: String = "0:00",
+        val powerWatts: Int = 0,
+        val totalKcal: Double = 0.0,
+        val effortFactor: Int = 100
     )
 }
