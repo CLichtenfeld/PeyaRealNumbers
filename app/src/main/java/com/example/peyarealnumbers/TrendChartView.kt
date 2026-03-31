@@ -37,21 +37,21 @@ class TrendChartView @JvmOverloads constructor(
     }
 
     private val paintAvgLine = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#E67E22") // Naranja más visible
-        strokeWidth = 3f
+        color = Color.parseColor("#E67E22")
+        strokeWidth = 4f
         style = Paint.Style.STROKE
-        pathEffect = DashPathEffect(floatArrayOf(10f, 10f), 0f)
+        pathEffect = DashPathEffect(floatArrayOf(15f, 15f), 0f)
     }
 
     private val paintGrid = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#E0E0E0")
+        color = Color.parseColor("#DCDDE1")
         strokeWidth = 2f
         style = Paint.Style.STROKE
     }
 
     private val paintText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#636E72") // Gris oscuro para mejor legibilidad
-        textSize = 22f
+        color = Color.parseColor("#2D3436") // Color mucho más oscuro para legibilidad
+        textSize = 24f
     }
 
     fun setData(puntosPago: List<Float>, puntosEsfuerzo: List<Float>, labels: List<String> = emptyList(), avg: Float? = null) {
@@ -68,10 +68,13 @@ class TrendChartView @JvmOverloads constructor(
 
         val w = width.toFloat()
         val h = height.toFloat()
-        val padL = 90f
+        
+        // Ajustamos paddings para dar más aire a las etiquetas
+        val padL = 110f
         val padR = 40f
-        val padT = 30f
-        val padB = 80f // Espacio para etiquetas
+        val padT = 40f
+        val padB = 80f 
+        
         val cW = w - padL - padR
         val cH = h - padT - padB
 
@@ -79,11 +82,12 @@ class TrendChartView @JvmOverloads constructor(
         val minP = dataPointsPago.minOrNull() ?: 0f
         val avgP = averagePago ?: 0f
         
-        val top = maxOf(maxP, avgP) * 1.1f
-        val bot = minOf(minP, avgP) * 0.9f
+        // Calculamos escala vertical
+        val top = maxOf(maxP, avgP) * 1.15f
+        val bot = minOf(minP, avgP) * 0.85f
         val range = if (top == bot) 1f else top - bot
 
-        // Dibujar Grid (3 líneas horizontales)
+        // Grid horizontal
         for (i in 0..2) {
             val y = padT + i * cH / 2
             canvas.drawLine(padL, y, w - padR, y, paintGrid)
@@ -91,7 +95,7 @@ class TrendChartView @JvmOverloads constructor(
 
         val step = cW / (dataPointsPago.size - 1)
 
-        // 1. Dibujar Línea de Esfuerzo
+        // 1. Dibujar Línea de Esfuerzo (Dash Red)
         val pathE = Path()
         val maxE = dataPointsEsfuerzo.maxOrNull() ?: 1f
         val rangeE = if (maxE == 0f) 1f else maxE
@@ -102,12 +106,13 @@ class TrendChartView @JvmOverloads constructor(
         }
         canvas.drawPath(pathE, paintLineEsfuerzo)
 
-        // 2. Dibujar Línea de Pago y Relleno
+        // 2. Dibujar Línea de Pago (Green) y Relleno
         val pathP = Path()
         val pathF = Path()
         for (i in dataPointsPago.indices) {
             val x = padL + i * step
             val y = h - padB - ((dataPointsPago[i] - bot) / range * cH)
+            
             if (i == 0) {
                 pathP.moveTo(x, y)
                 pathF.moveTo(x, h - padB)
@@ -126,27 +131,35 @@ class TrendChartView @JvmOverloads constructor(
         canvas.drawPath(pathF, paintFillPago)
         canvas.drawPath(pathP, paintLinePago)
 
-        // 3. Dibujar Línea de Media (Promedio)
+        // 3. Dibujar Línea de Media (AVG Orange)
         averagePago?.let { avg ->
             val y = h - padB - ((avg - bot) / range * cH)
             canvas.drawLine(padL, y, w - padR, y, paintAvgLine)
             paintText.textAlign = Paint.Align.RIGHT
-            canvas.drawText(String.format(Locale.getDefault(), "AVG: $%.1f", avg), w - padR, y - 8f, paintText)
+            paintText.textSize = 22f
+            paintText.color = Color.parseColor("#D35400") // Naranja oscuro para el texto del AVG
+            canvas.drawText(String.format(Locale.getDefault(), "AVG: $%.1f", avg), w - padR, y - 12f, paintText)
         }
 
-        // 4. Dibujar Etiquetas Eje Y
+        // 4. Etiquetas Eje Y (Valores)
+        paintText.color = Color.parseColor("#636E72")
         paintText.textAlign = Paint.Align.LEFT
-        canvas.drawText(String.format(Locale.getDefault(), "$%.0f", top), 5f, padT + 20f, paintText)
-        canvas.drawText(String.format(Locale.getDefault(), "$%.0f", bot), 5f, h - padB, paintText)
+        paintText.textSize = 24f
+        canvas.drawText(String.format(Locale.getDefault(), "$%.0f", top), 10f, padT + 20f, paintText)
+        canvas.drawText(String.format(Locale.getDefault(), "$%.0f", bot), 10f, h - padB, paintText)
 
-        // 5. DIBUJAR ETIQUETAS EJE X (MESES) - SE DIBUJAN AL FINAL PARA QUE NADA LAS TAPE
+        // 5. ETIQUETAS EJE X (DÍAS / MESES)
         paintText.textAlign = Paint.Align.CENTER
-        paintText.textSize = 20f
+        paintText.textSize = 24f
+        paintText.color = Color.BLACK // Negro para máxima visibilidad
         for (i in dataLabels.indices) {
-            if (dataLabels.isNotEmpty() && i < dataLabels.size && dataLabels[i].isNotEmpty()) {
+            val label = dataLabels[i]
+            if (label.isNotEmpty()) {
                 val x = padL + i * step
-                // Dibujamos de forma horizontal para que sea simple y claro
-                canvas.drawText(dataLabels[i], x, h - 20f, paintText)
+                // Dibujar etiqueta un poco más arriba para que no se corte
+                canvas.drawText(label, x, h - 10f, paintText)
+                // Pequeña marca en el eje
+                canvas.drawLine(x, h - padB, x, h - padB + 15f, paintGrid)
             }
         }
     }

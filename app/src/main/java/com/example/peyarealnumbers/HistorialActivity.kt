@@ -137,7 +137,7 @@ class HistorialActivity : AppCompatActivity() {
     }
 
     private fun updateTabsUi() {
-        val activeColor = ContextCompat.getColor(this, R.color.accent_green)
+        val activeColor = Color.BLACK
         val inactiveColor = Color.parseColor("#B2BEC3")
         tvTabSemana.setTextColor(if (currentFilter == "SEMANA") activeColor else inactiveColor)
         tvTabMes.setTextColor(if (currentFilter == "MES") activeColor else inactiveColor)
@@ -222,26 +222,22 @@ class HistorialActivity : AppCompatActivity() {
         val pPago = filtradas.map { ((it.gananciaTotal + it.propinaTotal) / it.distanciaRealTotal).toFloat() }
         val pEsfuerzo = filtradas.map { (it.joulesTotales / 4184.0 / it.distanciaRealTotal).toFloat() }
         
-        // Promedio real del período para la línea de referencia (coincide con el resumen superior)
         val totalMonto = filtradas.sumOf { (it.gananciaTotal + it.propinaTotal).toDouble() }
         val totalDist = filtradas.sumOf { it.distanciaRealTotal }
         val avg = if (totalDist > 0.01) (totalMonto / totalDist).toFloat() else 0f
         
-        var lastMonthShown = -1
         val labels = mutableListOf<String>()
         for (j in filtradas) {
             val date = try { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(j.fecha)!! } catch(e: Exception) { Date() }
             val cal = Calendar.getInstance().apply { time = date }
-            val month = cal.get(Calendar.MONTH)
+            val day = cal.get(Calendar.DAY_OF_MONTH)
             
             val label = when {
                 limit <= 7 -> SimpleDateFormat("dd/MM", Locale.getDefault()).format(date)
-                limit == 30 -> if (cal.get(Calendar.DAY_OF_MONTH) % 5 == 0) SimpleDateFormat("dd/MM", Locale.getDefault()).format(date) else ""
+                limit == 30 -> if (day % 5 == 0) SimpleDateFormat("dd/MM", Locale.getDefault()).format(date) else ""
                 else -> { // Caso ANIO (365)
-                    if (month != lastMonthShown) {
-                        lastMonthShown = month
-                        SimpleDateFormat("MMM", Locale("es", "ES")).format(date).uppercase()
-                    } else ""
+                    // Mostrar etiqueta el 10 de cada mes
+                    if (day == 10) SimpleDateFormat("MMM", Locale("es", "ES")).format(date).uppercase() else ""
                 }
             }
             labels.add(label)

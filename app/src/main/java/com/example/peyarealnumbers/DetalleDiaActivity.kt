@@ -2,32 +2,22 @@ package com.example.peyarealnumbers
 
 import android.content.Intent
 import android.content.res.Configuration as AndroidConfig
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
+import android.graphics.*
 import android.os.Bundle
-import android.preference.PreferenceManager
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.peyarealnumbers.database.AppDatabase
+import com.example.peyarealnumbers.database.SesionEntity
 import com.example.peyarealnumbers.utils.FormatUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -44,8 +34,13 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.regex.Pattern
 
+/**
+ * Activity que muestra el desglose detallado de una jornada de trabajo específica.
+ * Incluye visualización de rutas en mapa (GPX), métricas de esfuerzo y eficiencia.
+ */
 class DetalleDiaActivity : AppCompatActivity() {
 
+    // Componentes de la Interfaz de Usuario
     private lateinit var map: MapView
     private lateinit var tvTiempoTotal: TextView
     private lateinit var tvFecha: TextView
@@ -61,37 +56,49 @@ class DetalleDiaActivity : AppCompatActivity() {
     private lateinit var rvSesiones: RecyclerView
     private lateinit var btnShare: ImageButton
     private lateinit var layoutCapture: LinearLayout
+
+    // Estado y Datos
     private lateinit var db: AppDatabase
     private var fechaActual: String = ""
-
-    private val colores = listOf(
-        Color.parseColor("#CC007AFF"),
-        Color.parseColor("#CCFF3B30"),
-        Color.parseColor("#CC4CD964"),
-        Color.parseColor("#CCFF9500"),
-        Color.parseColor("#CC5856D6"),
-        Color.parseColor("#CCAF52DE")
+    private val coloresRutas = listOf(
+        Color.parseColor("#CC007AFF"), // Azul
+        Color.parseColor("#CCFF3B30"), // Rojo
+        Color.parseColor("#CC4CD964"), // Verde
+        Color.parseColor("#CCFF9500"), // Naranja
+        Color.parseColor("#CC5856D6"), // Índigo
+        Color.parseColor("#CCAF52DE")  // Púrpura
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
+        
+        // La configuración de OSMDroid debe realizarse antes de inflar el layout
+        setupMapConfig()
+        
         setContentView(R.layout.activity_detalle_dia)
 
         db = AppDatabase.getDatabase(this)
         vincularVistas()
-        
-        map.setTileSource(TileSourceFactory.MAPNIK)
-        map.setMultiTouchControls(true)
-        map.controller.setZoom(16.0)
-
-        aplicarModoOscuroMapa()
+        setupInitialMapState()
 
         fechaActual = intent.getStringExtra("fecha") ?: ""
         configurarFechaCabecera()
-        observarDatosDia(fechaActual)
-
+        
+        // Iniciamos la observación reactiva de los datos
+        observarDatosJornada(fechaActual)
         configurarListeners()
+    }
+
+    private fun setupMapConfig() {
+        Configuration.getInstance().userAgentValue = packageName
+        Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
+    }
+
+    private fun setupInitialMapState() {
+        map.setTileSource(TileSourceFactory.MAPNIK)
+        map.setMultiTouchControls(true)
+        map.controller.setZoom(16.0)
+        aplicarModoOscuroMapa()
     }
 
     private fun vincularVistas() {
@@ -114,29 +121,198 @@ class DetalleDiaActivity : AppCompatActivity() {
 
     private fun configurarListeners() {
         btnShare.setOnClickListener { generarYCompartirReporte() }
-        ivInfoRealKm.setOnClickListener { mostrarInfo("Km Real", "Distancia exacta recorrida considerando variaciones de altitud (3D).") }
-        ivInfoPagoKm.setOnClickListener { mostrarInfo("$/Km Real", "Ganancia neta dividida por kilómetros reales recorridos.") }
-        ivInfoExtra.setOnClickListener { mostrarInfo("Esfuerzo Extra", "Energía adicional gastada debido a las pendientes, comparada con el mismo trayecto en plano.") }
-    }
-
-    private fun mostrarInfo(t: String, m: String) {
-        AlertDialog.Builder(this).setTitle(t).setMessage(m).setPositiveButton("OK", null).show()
-    }
-
-    private fun configurarFechaCabecera() {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("EEEE, d 'de' MMMM", Locale("es", "ES"))
-        tvFecha.text = try {
-            val date = inputFormat.parse(fechaActual)
-            outputFormat.format(date!!).replaceFirstChar { it.uppercase() }
-        } catch (e: Exception) {
-            fechaActual
+        
+        // Diálogos informativos para métricas complejas
+        ivInfoRealKm.setOnClickListener { 
+            mostrarInfo("Distancia Real", "Calculada mediante altimetría 3D para una precisión exacta del recorrido.") 
+        }
+        ivInfoPagoKm.setOnClickListener { 
+            mostrarInfo("Rentabilidad", "Ingreso neto promedio obtenido por cada kilómetro real recorrido.") 
+        }
+        ivInfoExtra.setOnClickListener { 
+            mostrarInfo("Esfuerzo Extra", "Porcentaje de energía adicional consumida debido a pendientes y elevación.") 
         }
     }
 
+    /**
+     * Observa los cambios en la base de datos para la jornada actual.
+     */
+    private fun observarDatosJornada(fecha: String) {
+        lifecycleScope.launch {
+            db.jornadaDao().getSesionesDelDia(fecha).collect { sesiones ->
+                if (sesiones.isEmpty()) {
+                    finish()
+                    return@collect
+                }
+                actualizarMétricasUI(sesiones)
+                setupRecyclerView(sesiones)
+                dibujarRutasGPX(File(getExternalFilesDir(null), "jornada_$fecha.gpx"))
+            }
+        }
+    }
+
+    private fun actualizarMétricasUI(sesiones: List<SesionEntity>) {
+        var dPlanaTotal = 0.0
+        var dRealTotal = 0.0
+        var ingresosTotales = 0
+        var tiempoTotalSeg = 0L
+        var pedidosTotales = 0
+        var joulesGastados = 0.0
+        var joulesBasePlano = 0.0
+
+        for (s in sesiones) {
+            dPlanaTotal += s.distanciaPlanaM
+            dRealTotal += s.distanciaRealM
+            ingresosTotales += (s.ganancia + s.propina)
+            tiempoTotalSeg += s.duracionSeg
+            pedidosTotales += s.cantPedidos
+            joulesGastados += s.joulesTotales
+            joulesBasePlano += s.joulesPlanoTotales
+        }
+
+        tvTotalPlana.text = String.format("Oficial: %.2fkm", dPlanaTotal / 1000.0)
+        tvTotalReal.text = String.format("%.2f km", dRealTotal / 1000.0)
+        tvMontoTotal.text = "$$ingresosTotales"
+        
+        val promedio = if (pedidosTotales > 0) ingresosTotales / pedidosTotales else 0
+        tvTiempoTotal.text = "Tiempo: ${FormatUtils.formatElapsedTime(tiempoTotalSeg)} | Pedidos: $pedidosTotales ($$promedio/u)"
+        
+        tvPesoPorKm.text = if (dRealTotal > 0) String.format("$%.1f", ingresosTotales / (dRealTotal / 1000.0)) else "$0"
+        tvTotalKcal.text = (joulesGastados / 4184.0).toInt().toString()
+        
+        val extraFactor = if (joulesBasePlano > 10) ((joulesGastados / joulesBasePlano) - 1.0) * 100.0 else 0.0
+        tvEsfuerzoExtra.text = String.format("+%.0f%%", extraFactor)
+    }
+
+    private fun setupRecyclerView(sesiones: List<SesionEntity>) {
+        val listaItems = sesiones.mapIndexed { index, s ->
+            SesionItem(
+                dbId = s.id,
+                nombre = s.nombrePersonalizado ?: "Jornada ${s.numeroSesion}",
+                distancia = String.format("%.2f km", s.distanciaRealM / 1000.0),
+                total = s.ganancia + s.propina,
+                pedidos = s.cantPedidos,
+                color = coloresRutas[index % coloresRutas.size],
+                horario = "${s.horaInicio} - ${s.horaFin ?: "..."}",
+                vacioStr = "Vacío: ${FormatUtils.formatElapsedTime(s.tiempoVacioSeg)}"
+            )
+        }
+        rvSesiones.layoutManager = LinearLayoutManager(this)
+        rvSesiones.adapter = SesionesAdapter(listaItems) { item -> mostrarOpcionesSesion(item) }
+    }
+
+    /**
+     * Procesa y visualiza el trayecto almacenado en el archivo GPX.
+     */
+    private fun dibujarRutasGPX(file: File) {
+        if (!file.exists()) return
+        
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val gpxContent = file.readText()
+                val rawSegments = gpxContent.split("<trkseg>")
+                val overlays = mutableListOf<org.osmdroid.views.overlay.Overlay>()
+                var startPoint: GeoPoint? = null
+                var endPoint: GeoPoint? = null
+
+                val pattern = Pattern.compile("lat=\"([^\"]+)\"\\s+lon=\"([^\"]+)\"")
+
+                for (i in 1 until rawSegments.size) {
+                    val segmentBody = rawSegments[i].substringBefore("</trkseg>")
+                    val points = mutableListOf<GeoPoint>()
+                    val matcher = pattern.matcher(segmentBody)
+                    
+                    while (matcher.find()) {
+                        try {
+                            val gp = GeoPoint(matcher.group(1).toDouble(), matcher.group(2).toDouble())
+                            points.add(gp)
+                            if (startPoint == null) startPoint = gp
+                        } catch (e: Exception) { /* Omitir puntos inválidos */ }
+                    }
+
+                    if (points.isNotEmpty()) {
+                        val polyline = Polyline(map)
+                        polyline.outlinePaint.color = coloresRutas[(i - 1) % coloresRutas.size]
+                        polyline.outlinePaint.strokeWidth = 10f
+                        polyline.outlinePaint.strokeCap = Paint.Cap.ROUND
+                        
+                        // Simplificación del trazado para optimizar el rendimiento del mapa
+                        val finalPoints = if (points.size > 300) simplificarPuntos(points, 0.000008) else points
+                        polyline.setPoints(finalPoints)
+                        overlays.add(polyline)
+                        endPoint = finalPoints.last()
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    actualizarMapaUI(overlays, startPoint, endPoint)
+                }
+            } catch (e: Exception) {
+                Log.e("DetalleDia", "Error al procesar GPX: ${e.message}")
+            }
+        }
+    }
+
+    private fun actualizarMapaUI(overlays: List<org.osmdroid.views.overlay.Overlay>, start: GeoPoint?, end: GeoPoint?) {
+        map.overlays.clear()
+        map.overlays.addAll(overlays)
+        
+        start?.let {
+            val marker = Marker(map)
+            marker.position = it
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            marker.icon = AppCompatResources.getDrawable(this, android.R.drawable.presence_online)
+            marker.title = "Inicio"
+            map.overlays.add(marker)
+        }
+
+        end?.let {
+            val marker = Marker(map)
+            marker.position = it
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            marker.icon = AppCompatResources.getDrawable(this, android.R.drawable.ic_menu_mylocation)
+            marker.title = "Fin"
+            map.overlays.add(marker)
+            map.controller.animateTo(it)
+        }
+        map.invalidate()
+    }
+
+    /**
+     * Exporta el dashboard actual como imagen y abre el diálogo de compartir.
+     */
+    private fun generarYCompartirReporte() {
+        val bitmap = Bitmap.createBitmap(layoutCapture.width, layoutCapture.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        layoutCapture.draw(canvas)
+        
+        try {
+            val cachePath = File(cacheDir, "images").apply { mkdirs() }
+            val stream = FileOutputStream("$cachePath/reporte_peya.png")
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            stream.close()
+            
+            val contentUri = androidx.core.content.FileProvider.getUriForFile(
+                this, "$packageName.fileprovider", File(cachePath, "reporte_peya.png")
+            )
+            
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                setDataAndType(contentUri, contentResolver.getType(contentUri))
+                putExtra(Intent.EXTRA_STREAM, contentUri)
+                type = "image/png"
+            }
+            startActivity(Intent.createChooser(shareIntent, "Compartir Reporte"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al generar el reporte", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // --- Métodos de Apoyo ---
+
     private fun aplicarModoOscuroMapa() {
-        val nightModeFlags = resources.configuration.uiMode and AndroidConfig.UI_MODE_NIGHT_MASK
-        if (nightModeFlags == AndroidConfig.UI_MODE_NIGHT_YES) {
+        val isNight = (resources.configuration.uiMode and AndroidConfig.UI_MODE_NIGHT_MASK) == AndroidConfig.UI_MODE_NIGHT_YES
+        if (isNight) {
             val inverseMatrix = ColorMatrix(floatArrayOf(
                 -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
                 0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
@@ -147,160 +323,38 @@ class DetalleDiaActivity : AppCompatActivity() {
         }
     }
 
-    private fun observarDatosDia(fecha: String) {
-        lifecycleScope.launch {
-            db.jornadaDao().getSesionesDelDia(fecha).collect { sesiones ->
-                if (sesiones.isEmpty()) { finish(); return@collect }
-                
-                var dPlana = 0.0; var dReal = 0.0; var ganancia = 0; var propina = 0; var tiempo = 0L; var vTotal = 0L; var pedidos = 0
-                var joules = 0.0; var joulesPlano = 0.0
-                
-                for (s in sesiones) {
-                    dPlana += s.distanciaPlanaM; dReal += s.distanciaRealM
-                    ganancia += s.ganancia; propina += s.propina; tiempo += s.duracionSeg
-                    vTotal += s.tiempoVacioSeg; joules += s.joulesTotales; joulesPlano += s.joulesPlanoTotales
-                    pedidos += s.cantPedidos
-                }
-                
-                val totalPesos = ganancia + propina
-                tvTotalPlana.text = String.format("Oficial: %.2fkm", dPlana / 1000.0)
-                tvTotalReal.text = String.format("%.2f km", dReal / 1000.0)
-                tvMontoTotal.text = "$$totalPesos"
-                
-                val promedioPedido = if (pedidos > 0) totalPesos / pedidos else 0
-                tvTiempoTotal.text = "Tiempo: ${FormatUtils.formatElapsedTime(tiempo)} | Pedidos: $pedidos ($$promedioPedido/u)"
-                
-                tvPesoPorKm.text = if (dReal > 0) String.format("$%.1f", totalPesos / (dReal / 1000.0)) else "$0"
-                tvTotalKcal.text = (joules / 4184.0).toInt().toString()
-                
-                val extraFactor = if (joulesPlano > 10) ((joules / joulesPlano) - 1.0) * 100.0 else 0.0
-                tvEsfuerzoExtra.text = String.format("+%.0f%%", extraFactor)
-
-                val listaItems = sesiones.mapIndexed { index, s ->
-                    SesionItem(
-                        dbId = s.id,
-                        numero = s.numeroSesion,
-                        nombre = s.nombrePersonalizado ?: "Jornada ${s.numeroSesion}",
-                        distancia = String.format("%.2f km", s.distanciaRealM / 1000.0),
-                        ganancia = s.ganancia,
-                        propina = s.propina,
-                        pedidos = s.cantPedidos,
-                        color = colores[index % colores.size],
-                        horario = "${s.horaInicio} - ${s.horaFin ?: "..."}",
-                        tiempoVacioStr = "Vacío: ${FormatUtils.formatElapsedTime(s.tiempoVacioSeg)}"
-                    )
-                }
-                rvSesiones.layoutManager = LinearLayoutManager(this@DetalleDiaActivity)
-                rvSesiones.adapter = SesionesAdapter(listaItems) { mostrarOpcionesSesion(it) }
-
-                dibujarRutasBackground(File(getExternalFilesDir(null), "jornada_$fecha.gpx"))
-            }
-        }
+    private fun mostrarInfo(titulo: String, mensaje: String) {
+        AlertDialog.Builder(this).setTitle(titulo).setMessage(mensaje).setPositiveButton("OK", null).show()
     }
 
-    private fun generarYCompartirReporte() {
-        val bitmap = Bitmap.createBitmap(layoutCapture.width, layoutCapture.height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        layoutCapture.draw(canvas)
-        try {
-            val cachePath = File(cacheDir, "images"); cachePath.mkdirs()
-            val stream = FileOutputStream("$cachePath/reporte_peya.png")
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream); stream.close()
-            val contentUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", File(cachePath, "reporte_peya.png"))
-            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                setDataAndType(contentUri, contentResolver.getType(contentUri))
-                putExtra(Intent.EXTRA_STREAM, contentUri)
-                type = "image/png"
-            }
-            startActivity(Intent.createChooser(shareIntent, "Compartir Reporte"))
-        } catch (e: Exception) { e.printStackTrace() }
-    }
-
-    private fun dibujarRutasBackground(file: File) {
-        if (!file.exists()) return
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val gpxContent = file.readText()
-                val rawSegments = gpxContent.split("<trkseg>")
-                val overlaysAMostrar = mutableListOf<org.osmdroid.views.overlay.Overlay>()
-                var primerPuntoGlobal: GeoPoint? = null
-                var ultimoPuntoGlobal: GeoPoint? = null
-
-                val pattern = Pattern.compile("lat=\"([^\"]+)\"\\s+lon=\"([^\"]+)\"")
-
-                for (i in 1 until rawSegments.size) {
-                    val segmentBody = rawSegments[i].substringBefore("</trkseg>")
-                    val points = mutableListOf<GeoPoint>()
-                    val matcher = pattern.matcher(segmentBody)
-                    
-                    while (matcher.find()) {
-                        val latStr = matcher.group(1).replace(",", ".")
-                        val lonStr = matcher.group(2).replace(",", ".")
-                        try {
-                            val gp = GeoPoint(latStr.toDouble(), lonStr.toDouble())
-                            points.add(gp)
-                            if (primerPuntoGlobal == null) primerPuntoGlobal = gp
-                        } catch (e: Exception) {}
-                    }
-
-                    if (points.isNotEmpty()) {
-                        val polyline = Polyline(map)
-                        polyline.outlinePaint.color = colores[(i - 1) % colores.size]
-                        polyline.outlinePaint.strokeWidth = 10f
-                        polyline.outlinePaint.strokeCap = Paint.Cap.ROUND
-                        
-                        val finalPoints = if (points.size > 300) simplificarPuntos(points, 0.000008) else points
-                        polyline.setPoints(finalPoints)
-                        overlaysAMostrar.add(polyline)
-                        ultimoPuntoGlobal = finalPoints.last()
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    val currentOverlays = map.overlays
-                    currentOverlays.removeAll(currentOverlays.filter { it is Polyline || it is Marker })
-                    currentOverlays.addAll(overlaysAMostrar)
-                    
-                    if (primerPuntoGlobal != null) {
-                        val startMarker = Marker(map)
-                        startMarker.position = primerPuntoGlobal
-                        startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        startMarker.icon = AppCompatResources.getDrawable(this@DetalleDiaActivity, android.R.drawable.presence_online)
-                        startMarker.title = "Inicio del recorrido"
-                        currentOverlays.add(startMarker)
-                    }
-
-                    if (ultimoPuntoGlobal != null) {
-                        val endMarker = Marker(map)
-                        endMarker.position = ultimoPuntoGlobal
-                        endMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                        endMarker.icon = AppCompatResources.getDrawable(this@DetalleDiaActivity, android.R.drawable.ic_menu_mylocation)
-                        currentOverlays.add(endMarker)
-                        map.controller.animateTo(ultimoPuntoGlobal)
-                    }
-                    map.invalidate()
-                }
-            } catch (e: Exception) { Log.e("DetalleDia", "Error: ${e.message}") }
-        }
+    private fun configurarFechaCabecera() {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("EEEE, d 'de' MMMM", Locale("es", "ES"))
+        tvFecha.text = try {
+            val date = inputFormat.parse(fechaActual)
+            outputFormat.format(date!!).replaceFirstChar { it.uppercase() }
+        } catch (e: Exception) { fechaActual }
     }
 
     private fun simplificarPuntos(puntos: List<GeoPoint>, epsilon: Double): List<GeoPoint> {
         if (puntos.size < 3) return puntos
-        var dMax = 0.0; var index = 0; val final = puntos.size - 1
+        var dMax = 0.0
+        var index = 0
+        val final = puntos.size - 1
         for (i in 1 until final) {
-            val d = distanciaPerpendicular(puntos[i], puntos[0], puntos[final])
+            val d = calcularDistanciaPerpendicular(puntos[i], puntos[0], puntos[final])
             if (d > dMax) { index = i; dMax = d }
         }
         return if (dMax > epsilon) {
-            val rec1 = simplificarPuntos(puntos.subList(0, index + 1), epsilon)
-            val rec2 = simplificarPuntos(puntos.subList(index, puntos.size), epsilon)
-            rec1.dropLast(1) + rec2
+            val r1 = simplificarPuntos(puntos.subList(0, index + 1), epsilon)
+            val r2 = simplificarPuntos(puntos.subList(index, puntos.size), epsilon)
+            r1.dropLast(1) + r2
         } else listOf(puntos[0], puntos[final])
     }
 
-    private fun distanciaPerpendicular(p: GeoPoint, start: GeoPoint, end: GeoPoint): Double {
-        val dx = end.longitude - start.longitude; val dy = end.latitude - start.latitude
+    private fun calcularDistanciaPerpendicular(p: GeoPoint, start: GeoPoint, end: GeoPoint): Double {
+        val dx = end.longitude - start.longitude
+        val dy = end.latitude - start.latitude
         if (dx == 0.0 && dy == 0.0) return Math.sqrt(Math.pow(p.longitude - start.longitude, 2.0) + Math.pow(p.latitude - start.latitude, 2.0))
         val t = ((p.longitude - start.longitude) * dx + (p.latitude - start.latitude) * dy) / (dx * dx + dy * dy)
         return when {
@@ -310,10 +364,12 @@ class DetalleDiaActivity : AppCompatActivity() {
         }
     }
 
+    // --- Diálogos de Gestión ---
+
     private fun mostrarOpcionesSesion(item: SesionItem) {
-        val ops = arrayOf("Editar jornada", "Eliminar jornada")
-        AlertDialog.Builder(this).setTitle("Opciones: ${item.nombre}").setItems(ops) { _, which ->
-            if (which == 0) mostrarDialogoEdicion(item) else mostrarConfirmarEliminarSesion(item)
+        val opciones = arrayOf("Editar jornada", "Eliminar jornada")
+        AlertDialog.Builder(this).setTitle(item.nombre).setItems(opciones) { _, which ->
+            if (which == 0) mostrarDialogoEdicion(item) else mostrarConfirmarEliminar(item)
         }.show()
     }
 
@@ -323,53 +379,46 @@ class DetalleDiaActivity : AppCompatActivity() {
         val etGanancia = view.findViewById<EditText>(R.id.etEditGanancia)
         val etPropina = view.findViewById<EditText>(R.id.etEditPropina)
         
-        // Agregar campo de pedidos en el diálogo de edición si el contenedor existe
-        var etPedidos: EditText? = null
-        val container = view.findViewById<LinearLayout>(R.id.layoutEditContainer) ?: (view as? ViewGroup)
-        if (container is ViewGroup) {
-            etPedidos = EditText(this).apply {
-                hint = "Cantidad de Pedidos"
-                setText(item.pedidos.toString())
-                inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                setSelectAllOnFocus(true)
-                textSize = 20f
-                setPadding(12, 12, 12, 12)
-            }
-            container.addView(etPedidos)
+        val etPedidos = EditText(this).apply {
+            hint = "Pedidos"; setText(item.pedidos.toString())
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setPadding(12, 12, 12, 12)
         }
+        (view.findViewById<LinearLayout>(R.id.layoutEditContainer) ?: (view as ViewGroup)).addView(etPedidos)
 
         etNombre.setText(if (item.nombre.startsWith("Jornada ")) "" else item.nombre)
-        etGanancia.setText(item.ganancia.toString()); etPropina.setText(item.propina.toString())
+        etGanancia.setText((item.total).toString()) 
         
         AlertDialog.Builder(this).setTitle("Editar").setView(view).setPositiveButton("Guardar") { _, _ ->
             val g = etGanancia.text.toString().toIntOrNull() ?: 0
             val p = etPropina.text.toString().toIntOrNull() ?: 0
-            val c = etPedidos?.text.toString().toIntOrNull() ?: item.pedidos
+            val c = etPedidos.text.toString().toIntOrNull() ?: item.pedidos
             val n = etNombre.text.toString().ifBlank { null }
             lifecycleScope.launch { db.jornadaDao().editarSesion(item.dbId, g, p, c, n, fechaActual) }
         }.setNegativeButton("Cancelar", null).show()
     }
 
-    private fun mostrarConfirmarEliminarSesion(item: SesionItem) {
-        AlertDialog.Builder(this).setTitle("Eliminar").setMessage("¿Borrar '${item.nombre}'?").setPositiveButton("Eliminar") { _, _ ->
-            lifecycleScope.launch { db.jornadaDao().eliminarSesionYRecalcular(item.dbId, fechaActual) }
-        }.setNegativeButton("Cancelar", null).show()
+    private fun mostrarConfirmarEliminar(item: SesionItem) {
+        AlertDialog.Builder(this).setTitle("Eliminar")
+            .setMessage("¿Confirmas la eliminación de esta jornada?")
+            .setPositiveButton("Eliminar") { _, _ ->
+                lifecycleScope.launch { db.jornadaDao().eliminarSesionYRecalcular(item.dbId, fechaActual) }
+            }.setNegativeButton("Cancelar", null).show()
     }
 
+    // --- Componentes del RecyclerView ---
+
     data class SesionItem(
-        val dbId: Long, 
-        val numero: Int, 
-        val nombre: String, 
-        val distancia: String, 
-        val ganancia: Int, 
-        val propina: Int,
-        val pedidos: Int,
-        val color: Int,
-        val horario: String,
-        val tiempoVacioStr: String
+        val dbId: Long, val nombre: String, val distancia: String,
+        val total: Int, val pedidos: Int, val color: Int,
+        val horario: String, val vacioStr: String
     )
 
-    class SesionesAdapter(private val sesiones: List<SesionItem>, private val onLongClick: (SesionItem) -> Unit) : RecyclerView.Adapter<SesionesAdapter.ViewHolder>() {
+    class SesionesAdapter(
+        private val sesiones: List<SesionItem>, 
+        private val onLongClick: (SesionItem) -> Unit
+    ) : RecyclerView.Adapter<SesionesAdapter.ViewHolder>() {
+
         class ViewHolder(v: View) : RecyclerView.ViewHolder(v) {
             val tvId: TextView = v.findViewById(R.id.tvSesionId)
             val tvDist: TextView = v.findViewById(R.id.tvSesionDist)
@@ -379,18 +428,24 @@ class DetalleDiaActivity : AppCompatActivity() {
             val tvHorario: TextView = v.findViewById(R.id.tvSesionHorario)
             val tvVacio: TextView = v.findViewById(R.id.tvSesionVacio)
         }
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder = ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_sesion, parent, false))
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = 
+            ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_sesion, parent, false))
+
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = sesiones[position]
-            holder.tvId.text = item.nombre
-            holder.tvHorario.text = item.horario
-            holder.tvDist.text = item.distancia
-            holder.tvPlata.text = "$${item.ganancia + item.propina}"
-            holder.tvPedidos.text = "${item.pedidos} pedidos"
-            holder.tvVacio.text = item.tiempoVacioStr
-            holder.viewColor.setBackgroundColor(item.color)
-            holder.itemView.setOnLongClickListener { onLongClick(item); true }
+            with(holder) {
+                tvId.text = item.nombre
+                tvHorario.text = item.horario
+                tvDist.text = item.distancia
+                tvPlata.text = "$${item.total}"
+                tvPedidos.text = "${item.pedidos} pedidos"
+                tvVacio.text = item.vacioStr
+                viewColor.setBackgroundColor(item.color)
+                itemView.setOnLongClickListener { onLongClick(item); true }
+            }
         }
+
         override fun getItemCount() = sesiones.size
     }
 }

@@ -25,15 +25,15 @@
 
                 <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="48dp"
-                    android:paddingHorizontal="20dp"
-                    android:paddingBottom="16dp">
+                    android:layout_height="80dp"
+                    android:layout_marginTop="32dp"
+                    android:paddingHorizontal="20dp">
 
                     <ImageButton
                         android:id="@+id/btnBackHistorial"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
+                        android:layout_centerVertical="true"
                         android:background="@drawable/btn_rounded"
                         android:backgroundTint="@color/app_surface"
                         android:elevation="4dp"
@@ -56,6 +56,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
                         android:background="@drawable/btn_rounded"
                         android:backgroundTint="@color/app_surface"
                         android:elevation="4dp"
@@ -346,8 +347,8 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="SEMANAL"
-                                    android:padding="8dp"
-                                    android:textSize="10sp"
+                                    android:padding="12dp"
+                                    android:textSize="14sp"
                                     android:textStyle="bold"
                                     android:textColor="@color/accent_green" />
                                 <TextView
@@ -355,8 +356,8 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="MENSUAL"
-                                    android:padding="8dp"
-                                    android:textSize="10sp"
+                                    android:padding="12dp"
+                                    android:textSize="14sp"
                                     android:textStyle="bold"
                                     android:textColor="#B2BEC3" />
                                 <TextView
@@ -364,8 +365,8 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:text="ANUAL"
-                                    android:padding="8dp"
-                                    android:textSize="10sp"
+                                    android:padding="12dp"
+                                    android:textSize="14sp"
                                     android:textStyle="bold"
                                     android:textColor="#B2BEC3" />
                             </LinearLayout>
