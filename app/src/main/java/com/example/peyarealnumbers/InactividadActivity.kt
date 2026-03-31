@@ -13,7 +13,9 @@ import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.content.Intent
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class InactividadActivity : AppCompatActivity() {
 
     private var ringtone: Ringtone? = null

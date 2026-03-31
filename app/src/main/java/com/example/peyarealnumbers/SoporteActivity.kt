@@ -9,7 +9,9 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class SoporteActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,7 +48,6 @@ class SoporteActivity : AppCompatActivity() {
         btnEnviar.setOnClickListener {
             val msj = etSugerencia.text.toString()
             if (msj.isNotBlank()) {
-                // Simulamos el envío
                 Toast.makeText(this, "¡Gracias! Tu sugerencia ha sido enviada", Toast.LENGTH_LONG).show()
                 etSugerencia.text.clear()
             } else {

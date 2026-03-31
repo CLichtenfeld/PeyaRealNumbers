@@ -28,14 +28,17 @@ import com.example.peyarealnumbers.database.SesionEntity
 import com.example.peyarealnumbers.utils.AppConstants
 import com.example.peyarealnumbers.utils.FormatUtils
 import com.google.android.gms.location.*
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.inject.Inject
 import kotlin.math.*
 
+@AndroidEntryPoint
 class GpsService : Service() {
 
     private lateinit var fusedClient: FusedLocationProviderClient
@@ -56,7 +59,7 @@ class GpsService : Service() {
     private var sesionActualDbId: Long = -1L
     private var sessionReady = false
     
-    private lateinit var db: AppDatabase
+    @Inject lateinit var db: AppDatabase
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var jobTimer: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -130,7 +133,6 @@ class GpsService : Service() {
     }
 
     private fun inicializarComponentes() {
-        db = AppDatabase.getDatabase(this)
         fusedClient = LocationServices.getFusedLocationProviderClient(this)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         
@@ -147,7 +149,6 @@ class GpsService : Service() {
         val fecha = dateFormatDb.format(hoy)
         val horaInicio = timeFormatDb.format(hoy)
         
-        // RESET ABSOLUTO DE VARIABLES DE CLASE
         distancia2D = 0.0
         distancia3D = 0.0
         desnivelPositivo = 0.0
@@ -159,7 +160,6 @@ class GpsService : Service() {
         ultimaAlturaFiltrada = null
         filtroKalman.reset()
 
-        // RESET DE UI PARA EVITAR VALORES RESIDUALES VISIBLES
         TrackingManager.updateMetrics(0.0, 0, 0.0, "0:00", 0, 0.0, 100)
 
         val ahora = System.currentTimeMillis()
@@ -174,7 +174,6 @@ class GpsService : Service() {
         val sesionesExistentes = db.jornadaDao().getSesionesDirectas(fecha)
         numeroSegmento = sesionesExistentes.size + 1
         
-        // INSERTAR SESIÓN Y CAPTURAR ID ÚNICO
         sesionActualDbId = db.jornadaDao().insertarSesion(SesionEntity(
             fechaPadre = fecha, 
             numeroSesion = numeroSegmento, 
@@ -201,7 +200,6 @@ class GpsService : Service() {
     private fun guardarPunto(loc: Location) {
         if (!sessionReady) return
         
-        // RECHAZO AGRESIVO DE PUNTOS IMPRECISOS AL INICIO
         if (ultimaPosicion == null && loc.accuracy > 15) return
         if (loc.accuracy > 25) return
 
@@ -215,7 +213,6 @@ class GpsService : Service() {
                 val old = ultimaPosicion
                 if (old == null) 0.0f else {
                     val d = old.distanceTo(locFiltrada)
-                    // Si el salto es mayor a 50m en 4s (45km/h), sospechamos de salto de celda al inicio
                     if (d > 50.0 && d < 1.0) 0.0f else (d / (AppConstants.GPS_INTERVAL_MS / 1000f)) 
                 }
             }
@@ -237,7 +234,6 @@ class GpsService : Service() {
         val d2d = locFiltrada.distanceTo(old).toDouble()
         val tiempoVivo = (System.currentTimeMillis() - tiempoInicioSegmento) / 1000
 
-        // FILTRO DE VELOCIDAD HUMANA Y ESTABILIDAD INICIAL
         if ((tiempoVivo < 5 && d2d > 10.0) || d2d > 100.0) {
             ultimaPosicion = locFiltrada
             ultimaAlturaFiltrada = if (locFiltrada.hasAltitude()) locFiltrada.altitude else null

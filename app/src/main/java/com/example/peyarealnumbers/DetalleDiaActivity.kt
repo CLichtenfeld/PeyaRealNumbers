@@ -2,23 +2,33 @@ package com.example.peyarealnumbers
 
 import android.content.Intent
 import android.content.res.Configuration as AndroidConfig
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.lifecycleScope
-import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.peyarealnumbers.database.AppDatabase
 import com.example.peyarealnumbers.database.SesionEntity
 import com.example.peyarealnumbers.utils.FormatUtils
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -31,13 +41,15 @@ import org.osmdroid.views.overlay.Polyline
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 import java.util.regex.Pattern
+import javax.inject.Inject
 
 /**
- * Activity que muestra el desglose detallado de una jornada de trabajo específica.
- * Incluye visualización de rutas en mapa (GPX), métricas de esfuerzo y eficiencia.
+ * Activity que gestiona la visualización detallada de las métricas de una jornada.
+ * Implementa renderizado de rutas GPX, análisis de eficiencia de costos y cálculos de esfuerzo.
  */
+@AndroidEntryPoint
 class DetalleDiaActivity : AppCompatActivity() {
 
     // Componentes de la Interfaz de Usuario
@@ -53,12 +65,14 @@ class DetalleDiaActivity : AppCompatActivity() {
     private lateinit var ivInfoRealKm: ImageView
     private lateinit var ivInfoPagoKm: ImageView
     private lateinit var ivInfoExtra: ImageView
+    private lateinit var ivVerifiedBadge: ImageView
     private lateinit var rvSesiones: RecyclerView
     private lateinit var btnShare: ImageButton
     private lateinit var layoutCapture: LinearLayout
 
-    // Estado y Datos
-    private lateinit var db: AppDatabase
+    // Inyectamos la base de datos mediante Hilt (Senior Practice)
+    @Inject lateinit var db: AppDatabase
+    
     private var fechaActual: String = ""
     private val coloresRutas = listOf(
         Color.parseColor("#CC007AFF"), // Azul
@@ -77,7 +91,6 @@ class DetalleDiaActivity : AppCompatActivity() {
         
         setContentView(R.layout.activity_detalle_dia)
 
-        db = AppDatabase.getDatabase(this)
         vincularVistas()
         setupInitialMapState()
 
@@ -91,7 +104,9 @@ class DetalleDiaActivity : AppCompatActivity() {
 
     private fun setupMapConfig() {
         Configuration.getInstance().userAgentValue = packageName
-        Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
+        // Usamos el PreferenceManager de android.preference para compatibilidad con OSMDroid 6.1.20
+        @Suppress("DEPRECATION")
+        Configuration.getInstance().load(this, android.preference.PreferenceManager.getDefaultSharedPreferences(this))
     }
 
     private fun setupInitialMapState() {
@@ -113,6 +128,7 @@ class DetalleDiaActivity : AppCompatActivity() {
         ivInfoRealKm = findViewById(R.id.ivInfoRealKm)
         ivInfoPagoKm = findViewById(R.id.ivInfoPagoKm)
         ivInfoExtra = findViewById(R.id.ivInfoExtra)
+        ivVerifiedBadge = findViewById(R.id.ivVerifiedBadge)
         rvSesiones = findViewById(R.id.rvSesiones)
         map = findViewById(R.id.mapDetalle)
         btnShare = findViewById(R.id.btnShare)
@@ -144,14 +160,14 @@ class DetalleDiaActivity : AppCompatActivity() {
                     finish()
                     return@collect
                 }
-                actualizarMétricasUI(sesiones)
+                actualizarMetricasUI(sesiones)
                 setupRecyclerView(sesiones)
                 dibujarRutasGPX(File(getExternalFilesDir(null), "jornada_$fecha.gpx"))
             }
         }
     }
 
-    private fun actualizarMétricasUI(sesiones: List<SesionEntity>) {
+    private fun actualizarMetricasUI(sesiones: List<SesionEntity>) {
         var dPlanaTotal = 0.0
         var dRealTotal = 0.0
         var ingresosTotales = 0
@@ -159,6 +175,7 @@ class DetalleDiaActivity : AppCompatActivity() {
         var pedidosTotales = 0
         var joulesGastados = 0.0
         var joulesBasePlano = 0.0
+        var todasProcesadas = sesiones.isNotEmpty()
 
         for (s in sesiones) {
             dPlanaTotal += s.distanciaPlanaM
@@ -168,20 +185,30 @@ class DetalleDiaActivity : AppCompatActivity() {
             pedidosTotales += s.cantPedidos
             joulesGastados += s.joulesTotales
             joulesBasePlano += s.joulesPlanoTotales
+            if (!s.esProcesada) todasProcesadas = false
         }
 
-        tvTotalPlana.text = String.format("Oficial: %.2fkm", dPlanaTotal / 1000.0)
-        tvTotalReal.text = String.format("%.2f km", dRealTotal / 1000.0)
-        tvMontoTotal.text = "$$ingresosTotales"
+        tvTotalPlana.text = String.format(Locale.getDefault(), "Oficial: %.2fkm", dPlanaTotal / 1000.0)
+        tvTotalReal.text = String.format(Locale.getDefault(), "%.2f km", dRealTotal / 1000.0)
+        tvMontoTotal.text = String.format(Locale.getDefault(), "$%d", ingresosTotales)
         
         val promedio = if (pedidosTotales > 0) ingresosTotales / pedidosTotales else 0
-        tvTiempoTotal.text = "Tiempo: ${FormatUtils.formatElapsedTime(tiempoTotalSeg)} | Pedidos: $pedidosTotales ($$promedio/u)"
+        tvTiempoTotal.text = String.format(Locale.getDefault(), "Tiempo: %s | Pedidos: %d ($%d/u)", 
+            FormatUtils.formatElapsedTime(tiempoTotalSeg), pedidosTotales, promedio)
         
-        tvPesoPorKm.text = if (dRealTotal > 0) String.format("$%.1f", ingresosTotales / (dRealTotal / 1000.0)) else "$0"
+        tvPesoPorKm.text = if (dRealTotal > 0) String.format(Locale.getDefault(), "$%.1f", ingresosTotales / (dRealTotal / 1000.0)) else "$0"
         tvTotalKcal.text = (joulesGastados / 4184.0).toInt().toString()
         
         val extraFactor = if (joulesBasePlano > 10) ((joulesGastados / joulesBasePlano) - 1.0) * 100.0 else 0.0
-        tvEsfuerzoExtra.text = String.format("+%.0f%%", extraFactor)
+        tvEsfuerzoExtra.text = String.format(Locale.getDefault(), "+%.0f%%", extraFactor)
+
+        // Badge de verificación topográfica (CV Feature)
+        ivVerifiedBadge.visibility = if (todasProcesadas) View.VISIBLE else View.GONE
+        if (todasProcesadas) {
+            ivVerifiedBadge.setOnClickListener { 
+                mostrarInfo("Datos Verificados", "Esta jornada ha sido procesada con datos topográficos de alta precisión (Open-Elevation API).")
+            }
+        }
     }
 
     private fun setupRecyclerView(sesiones: List<SesionEntity>) {
@@ -189,8 +216,9 @@ class DetalleDiaActivity : AppCompatActivity() {
             SesionItem(
                 dbId = s.id,
                 nombre = s.nombrePersonalizado ?: "Jornada ${s.numeroSesion}",
-                distancia = String.format("%.2f km", s.distanciaRealM / 1000.0),
-                total = s.ganancia + s.propina,
+                distancia = String.format(Locale.getDefault(), "%.2f km", s.distanciaRealM / 1000.0),
+                ganancia = s.ganancia,
+                propina = s.propina,
                 pedidos = s.cantPedidos,
                 color = coloresRutas[index % coloresRutas.size],
                 horario = "${s.horaInicio} - ${s.horaFin ?: "..."}",
@@ -224,7 +252,9 @@ class DetalleDiaActivity : AppCompatActivity() {
                     
                     while (matcher.find()) {
                         try {
-                            val gp = GeoPoint(matcher.group(1).toDouble(), matcher.group(2).toDouble())
+                            val lat = matcher.group(1)?.toDouble() ?: continue
+                            val lon = matcher.group(2)?.toDouble() ?: continue
+                            val gp = GeoPoint(lat, lon)
                             points.add(gp)
                             if (startPoint == null) startPoint = gp
                         } catch (e: Exception) { /* Omitir puntos inválidos */ }
@@ -387,7 +417,8 @@ class DetalleDiaActivity : AppCompatActivity() {
         (view.findViewById<LinearLayout>(R.id.layoutEditContainer) ?: (view as ViewGroup)).addView(etPedidos)
 
         etNombre.setText(if (item.nombre.startsWith("Jornada ")) "" else item.nombre)
-        etGanancia.setText((item.total).toString()) 
+        etGanancia.setText(item.ganancia.toString()) 
+        etPropina.setText(item.propina.toString())
         
         AlertDialog.Builder(this).setTitle("Editar").setView(view).setPositiveButton("Guardar") { _, _ ->
             val g = etGanancia.text.toString().toIntOrNull() ?: 0
@@ -410,7 +441,7 @@ class DetalleDiaActivity : AppCompatActivity() {
 
     data class SesionItem(
         val dbId: Long, val nombre: String, val distancia: String,
-        val total: Int, val pedidos: Int, val color: Int,
+        val ganancia: Int, val propina: Int, val pedidos: Int, val color: Int,
         val horario: String, val vacioStr: String
     )
 
@@ -438,8 +469,8 @@ class DetalleDiaActivity : AppCompatActivity() {
                 tvId.text = item.nombre
                 tvHorario.text = item.horario
                 tvDist.text = item.distancia
-                tvPlata.text = "$${item.total}"
-                tvPedidos.text = "${item.pedidos} pedidos"
+                tvPlata.text = String.format(Locale.getDefault(), "$%d", item.ganancia + item.propina)
+                tvPedidos.text = String.format(Locale.getDefault(), "%d pedidos", item.pedidos)
                 tvVacio.text = item.vacioStr
                 viewColor.setBackgroundColor(item.color)
                 itemView.setOnLongClickListener { onLongClick(item); true }

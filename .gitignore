@@ -1,3 +1,4 @@
+# Android Generic
 *.iml
 .gradle
 /local.properties
@@ -8,3 +9,33 @@
 .externalNativeBuild
 .cxx
 *.hprof
+
+# User-specific / Local
+/app/build/
+/app/release/
+/app/debug/
+/app/generated/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Android Studio / IntelliJ
+*.ipr
+*.iws
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries
+.idea/libraries/
+.idea/caches/
+
+# Keystore / Secrets (VERY IMPORTANT)
+*.jks
+*.keystore
+*.p12
+google-services.json
+
+# Local config
+local.properties

@@ -7,33 +7,33 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration as AndroidConfig
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.preference.PreferenceManager
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
-import android.view.WindowManager
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
+import androidx.work.*
 import com.example.peyarealnumbers.database.AppDatabase
 import com.example.peyarealnumbers.utils.AppConstants
-import com.example.peyarealnumbers.utils.ElevationRefinery
+import com.example.peyarealnumbers.utils.ElevationWorker
 import com.example.peyarealnumbers.utils.FormatUtils
 import com.example.peyarealnumbers.utils.MockDataUtils
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -43,13 +43,19 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.inject.Inject
 
+/**
+ * Pantalla principal de la aplicación.
+ * Gestiona el tracking en tiempo real, visualización de mapa y resumen rápido de la jornada.
+ */
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
-    private val PERMISSION_REQUEST = 1001
-    private val OVERLAY_PERMISSION_REQUEST = 1002
+    private val permissionRequestCode = 1001
     private var jornadaActualId = 1
 
+    // Componentes UI
     private lateinit var tvTimer: TextView
     private lateinit var tvJornadaStatus: TextView
     private lateinit var tvCurrentSpeed: TextView
@@ -64,7 +70,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSupport: ImageButton
     private lateinit var map: MapView
     private lateinit var locationOverlay: MyLocationNewOverlay
-    private lateinit var db: AppDatabase
+
+    // Inyección de Dependencias
+    @Inject lateinit var db: AppDatabase
 
     private val handlerLongPress = Handler(Looper.getMainLooper())
     private var runnableSupport: Runnable? = null
@@ -72,30 +80,35 @@ class MainActivity : AppCompatActivity() {
     private var didLongPressSupport = false
     private var didLongPressTimer = false
 
+    private val overlayPermissionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "Permiso concedido", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        configurarOsmdroid()
+        setupOsmdroid()
         setContentView(R.layout.activity_main)
-        db = AppDatabase.getDatabase(this)
 
         vincularVistas()
-        configurarMapa()
+        setupMapa()
         observarEstadoTracking()
-        verificarPermisoSuperposicion()
-        verificarConfiguracionInicial()
+        verificarPermisosYConfig()
         configurarListeners()
     }
 
-    private fun configurarOsmdroid() {
+    private fun setupOsmdroid() {
         Configuration.getInstance().userAgentValue = packageName
-        Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
+        @Suppress("DEPRECATION")
+        Configuration.getInstance().load(this, android.preference.PreferenceManager.getDefaultSharedPreferences(this))
     }
 
-    private fun verificarConfiguracionInicial() {
+    private fun verificarPermisosYConfig() {
+        verificarPermisoSuperposicion()
         val prefs = getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
-        val pesoRider = prefs.getFloat(AppConstants.KEY_PESO_RIDER, 0f)
-        if (pesoRider == 0f) {
+        if (prefs.getFloat(AppConstants.KEY_PESO_RIDER, 0f) == 0f) {
             Toast.makeText(this, "Por favor, configura tu perfil para cálculos precisos", Toast.LENGTH_LONG).show()
             startActivity(Intent(this, ConfigRiderActivity::class.java))
         }
@@ -106,7 +119,7 @@ class MainActivity : AppCompatActivity() {
         btnMenu.setOnClickListener { mostrarPopUpMenu() }
         btnSupport.setOnClickListener { startActivity(Intent(this, SoporteActivity::class.java)) }
         
-        // MANTENER PRESIONADO 3 SEGUNDOS PARA GENERAR DATOS
+        // Gesto de pulsación larga (3s) para utilidades de desarrollador/soporte
         btnSupport.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -128,7 +141,7 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // MANTENER PRESIONADO EL TIMER 3 SEGUNDOS PARA BORRAR
+        // Timer Long Press para limpieza de datos locales
         tvTimer.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -150,8 +163,8 @@ class MainActivity : AppCompatActivity() {
             true
         }
         
-        ivInfoKmPeya.setOnClickListener { mostrarDialogoInfo("Km Peya", "Distancia 'oficial' en plano. Sirve para comparar con lo que la app de pedidos suele marcar.") }
-        ivInfoVacio.setOnClickListener { mostrarDialogoInfo("Tiempo de Vacío", "Tiempo acumulado 'al pedo' o muerto. No incluye el tiempo de espera activa por pedidos, sino el tiempo que realmente no estuviste produciendo ni moviéndote.") }
+        ivInfoKmPeya.setOnClickListener { mostrarDialogoInfo("Km Peya", "Distancia plana estándar. Útil para contrastar con los datos que reporta la app de pedidos.") }
+        ivInfoVacio.setOnClickListener { mostrarDialogoInfo("Tiempo de Vacío", "Tiempo acumulado sin actividad productiva ni desplazamiento. No incluye esperas activas.") }
     }
 
     private fun confirmarGenerarDatosPrueba() {
@@ -159,12 +172,11 @@ class MainActivity : AppCompatActivity() {
         val diasOpciones = intArrayOf(7, 30, 365)
 
         AlertDialog.Builder(this)
-            .setTitle("Generar datos de prueba")
+            .setTitle("Generar Datos Simulados")
             .setItems(opciones) { _, which ->
-                val dias = diasOpciones[which]
                 lifecycleScope.launch {
-                    MockDataUtils.generarDatosDePrueba(db, dias)
-                    Toast.makeText(this@MainActivity, "Datos de prueba generados (${opciones[which]})", Toast.LENGTH_SHORT).show()
+                    MockDataUtils.generarDatosDePrueba(db, diasOpciones[which])
+                    Toast.makeText(this@MainActivity, "Simulación generada: ${opciones[which]}", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancelar", null)
@@ -187,11 +199,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun mostrarDialogoInfo(titulo: String, mensaje: String) {
-        AlertDialog.Builder(this)
-            .setTitle(titulo)
-            .setMessage(mensaje)
-            .setPositiveButton("Entendido", null)
-            .show()
+        AlertDialog.Builder(this).setTitle(titulo).setMessage(mensaje).setPositiveButton("OK", null).show()
     }
 
     private fun gestionarClickToggle() {
@@ -202,20 +210,20 @@ class MainActivity : AppCompatActivity() {
                 mostrarExplicacionPermisos()
             }
         } else {
-            confirmarCierre()
+            confirmarFinalizacionJornada()
         }
     }
 
     private fun verificarPermisoSuperposicion() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+        if (!Settings.canDrawOverlays(this)) {
             AlertDialog.Builder(this)
-                .setTitle(getString(R.string.alerta_inactividad_titulo))
-                .setMessage("Para poder avisarte cuando llevas tiempo detenido, necesitamos el permiso de 'Mostrar sobre otras aplicaciones'.")
-                .setPositiveButton("Ir a Ajustes") { _, _ ->
-                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-                    startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST)
+                .setTitle("Permiso de Superposición")
+                .setMessage("Requerido para mostrar alertas de inactividad mientras usas otras aplicaciones de delivery.")
+                .setPositiveButton("Configurar") { _, _ ->
+                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri())
+                    overlayPermissionLauncher.launch(intent)
                 }
-                .setNegativeButton("Ahora no", null)
+                .setNegativeButton("Después", null)
                 .show()
         }
     }
@@ -236,12 +244,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun pedirPermisos() {
-        val basicos = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.POST_NOTIFICATIONS)
+        val basicos = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (Build.VERSION.SDK_INT >= 33) basicos.add(Manifest.permission.POST_NOTIFICATIONS)
         if (Build.VERSION.SDK_INT >= 34) basicos.add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
         
         val faltanBasicos = basicos.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (faltanBasicos.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, faltanBasicos.toTypedArray(), PERMISSION_REQUEST)
+            ActivityCompat.requestPermissions(this, faltanBasicos.toTypedArray(), permissionRequestCode)
         } else if (Build.VERSION.SDK_INT >= 29 && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             mostrarDialogoBackgroundLocation()
         }
@@ -249,75 +258,71 @@ class MainActivity : AppCompatActivity() {
 
     private fun mostrarDialogoBackgroundLocation() {
         AlertDialog.Builder(this)
-            .setTitle("Ubicación en segundo plano")
-            .setMessage("Selecciona 'Permitir todo el tiempo' para que el rastreo no se detenga al apagar la pantalla.")
-            .setPositiveButton("Configurar") { _, _ ->
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), PERMISSION_REQUEST)
-            }.setNegativeButton("Después", null).show()
+            .setTitle("Ubicación Todo el Tiempo")
+            .setMessage("Para que el rastreo sea preciso con la pantalla apagada, selecciona 'Permitir todo el tiempo'.")
+            .setPositiveButton("Ajustes") { _, _ ->
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), permissionRequestCode)
+            }.setNegativeButton("Ignorar", null).show()
     }
 
     private fun mostrarExplicacionPermisos() {
         AlertDialog.Builder(this)
-            .setTitle("Permisos de Ubicación")
-            .setMessage("Para auditar tus rutas correctamente, necesitamos acceso 'Todo el tiempo'.")
+            .setTitle("Permisos Requeridos")
+            .setMessage("Para auditar tus rutas necesitamos acceso permanente a la ubicación.")
             .setPositiveButton("Configurar") { _, _ -> pedirPermisos() }
-            .setNegativeButton("Cancelar", null).show()
+            .setNegativeButton("Cerrar", null).show()
     }
 
     private fun confirmarBorradoHoy() {
         AlertDialog.Builder(this)
-            .setTitle("Limpiar historial")
-            .setMessage("¿Qué deseas borrar?")
-            .setPositiveButton("Todo el historial") { _, _ ->
+            .setTitle("Limpiar Datos")
+            .setMessage("¿Qué datos deseas purgar del almacenamiento local?")
+            .setPositiveButton("Todo el Historial") { _, _ ->
                 lifecycleScope.launch {
                     db.jornadaDao().eliminarTodoHistorial()
-                    resetearInterfaz()
-                    Toast.makeText(this@MainActivity, "Todo el historial ha sido borrado", Toast.LENGTH_SHORT).show()
+                    resetearInterfazUI()
+                    Toast.makeText(this@MainActivity, "Base de datos reiniciada", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNeutralButton("Solo hoy") { _, _ ->
+            .setNeutralButton("Solo Hoy") { _, _ ->
                 val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                 lifecycleScope.launch {
                     db.jornadaDao().eliminarSesionesDelDia(fecha)
                     db.jornadaDao().eliminarJornada(fecha)
                     File(getExternalFilesDir(null), "jornada_$fecha.gpx").apply { if (exists()) delete() }
-                    resetearInterfaz()
-                    Toast.makeText(this@MainActivity, "Datos de hoy borrados", Toast.LENGTH_SHORT).show()
+                    resetearInterfazUI()
+                    Toast.makeText(this@MainActivity, "Datos de hoy eliminados", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancelar", null)
             .show()
     }
 
-    private fun resetearInterfaz() {
+    private fun resetearInterfazUI() {
         tvTotalPlana.text = "0.00 km"
         tvTimer.text = "00:00:00"
         tvTiempoVacio.text = "00:00:00"
-        actualizarInterfaz(false)
+        actualizarBotonEstado(false)
     }
 
     private fun observarEstadoTracking() {
         lifecycleScope.launch {
             TrackingManager.uiState.collect { state ->
-                actualizarUiDesdeEstado(state)
+                tvTimer.text = state.tiempoTranscurrido
+                tvTiempoVacio.text = state.tiempoVacioStr
+                jornadaActualId = state.jornadaId
+                tvCurrentSpeed.text = FormatUtils.formatKmh(state.speed)
+                tvCurrentAlt.text = String.format(Locale.getDefault(), "%.0fm", state.altitude)
+                
+                actualizarBotonEstado(state.isTracking)
+                
+                if (state.isTracking) {
+                    tvJornadaStatus.visibility = View.VISIBLE
+                    cargarResumenDb()
+                } else {
+                    tvJornadaStatus.visibility = View.INVISIBLE
+                }
             }
-        }
-    }
-
-    private fun actualizarUiDesdeEstado(state: TrackingManager.TrackingUiState) {
-        tvTimer.text = state.tiempoTranscurrido
-        tvTiempoVacio.text = state.tiempoVacioStr
-        jornadaActualId = state.jornadaId
-        tvCurrentSpeed.text = FormatUtils.formatKmh(state.speed)
-        tvCurrentAlt.text = String.format("%.0fm", state.altitude)
-        
-        actualizarInterfaz(state.isTracking)
-        
-        if (state.isTracking) {
-            tvJornadaStatus.visibility = android.view.View.VISIBLE
-            cargarDatosDesdeDb()
-        } else {
-            tvJornadaStatus.visibility = android.view.View.INVISIBLE
         }
     }
 
@@ -328,21 +333,18 @@ class MainActivity : AppCompatActivity() {
         tvTotalPlana = findViewById(R.id.tvTotalPlana)
         tvCurrentAlt = findViewById(R.id.tvCurrentAlt)
         tvTiempoVacio = findViewById(R.id.tvTiempoVacio)
-        
         ivInfoKmPeya = findViewById(R.id.ivInfoKmPeya)
         ivInfoVacio = findViewById(R.id.ivInfoVacio)
-        
         btnToggle = findViewById(R.id.btnToggle)
         btnCenter = findViewById(R.id.btnCenter)
         btnMenu = findViewById(R.id.btnMenu)
         btnSupport = findViewById(R.id.btnSupport)
     }
 
-    private fun configurarMapa() {
+    private fun setupMapa() {
         map = findViewById(R.id.map)
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
-        map.setBuiltInZoomControls(false)
         
         locationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), map)
         configurarIconoUbicacion()
@@ -352,13 +354,16 @@ class MainActivity : AppCompatActivity() {
         map.overlays.add(locationOverlay)
         map.controller.setZoom(18.0)
         
-        aplicarModoOscuroMapa()
+        aplicarFiltroMapaNoche()
         btnCenter.setOnClickListener { locationOverlay.myLocation?.let { map.controller.animateTo(it) } }
     }
 
     private fun configurarIconoUbicacion() {
         ContextCompat.getDrawable(this, R.drawable.red_dot)?.let {
-            val bitmap = drawableToBitmap(it)
+            val bitmap = if (it is BitmapDrawable) it.bitmap else {
+                val b = Bitmap.createBitmap(it.intrinsicWidth, it.intrinsicHeight, Bitmap.Config.ARGB_8888)
+                val c = Canvas(b); it.setBounds(0, 0, c.width, c.height); it.draw(c); b
+            }
             locationOverlay.setPersonIcon(bitmap)
             locationOverlay.setDirectionIcon(bitmap)
             locationOverlay.setPersonAnchor(0.5f, 0.5f)
@@ -366,20 +371,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun aplicarModoOscuroMapa() {
-        val nightModeFlags = resources.configuration.uiMode and AndroidConfig.UI_MODE_NIGHT_MASK
-        if (nightModeFlags == AndroidConfig.UI_MODE_NIGHT_YES) {
-            val inverseMatrix = ColorMatrix(floatArrayOf(
+    private fun aplicarFiltroMapaNoche() {
+        val isNight = (resources.configuration.uiMode and AndroidConfig.UI_MODE_NIGHT_MASK) == AndroidConfig.UI_MODE_NIGHT_YES
+        if (isNight) {
+            val matrix = ColorMatrix(floatArrayOf(
                 -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
                 0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
                 0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
                 0.0f, 0.0f, 0.0f, 1.0f, 0.0f
             ))
-            map.overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(inverseMatrix))
+            map.overlayManager.tilesOverlay.setColorFilter(ColorMatrixColorFilter(matrix))
         }
     }
 
-    private fun cargarDatosDesdeDb() {
+    private fun cargarResumenDb() {
         val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         lifecycleScope.launch {
             db.jornadaDao().getJornadaPorFecha(fecha)?.let {
@@ -388,56 +393,61 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun actualizarInterfaz(isCorriendo: Boolean) {
+    private fun actualizarBotonEstado(isCorriendo: Boolean) {
         if (isCorriendo) {
-            btnToggle.text = getString(R.string.btn_finalizar_ruta)
+            btnToggle.setText(R.string.btn_finalizar_ruta)
             btnToggle.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.holo_red_light)
         } else {
-            btnToggle.text = getString(R.string.btn_iniciar_ruta)
+            btnToggle.setText(R.string.btn_iniciar_ruta)
             btnToggle.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.holo_green_dark)
         }
     }
 
-    private fun confirmarCierre() {
-        AlertDialog.Builder(this).setTitle("Finalizar Jornada").setMessage("¿Estás seguro?")
-            .setPositiveButton("Sí") { _, _ -> mostrarDialogoDinero() }
+    private fun confirmarFinalizacionJornada() {
+        AlertDialog.Builder(this).setTitle("Cierre de Sesión").setMessage("¿Deseas finalizar el registro actual?")
+            .setPositiveButton("Sí") { _, _ -> mostrarFormularioDinero() }
             .setNegativeButton("No", null).show()
     }
 
-    private fun mostrarDialogoDinero() {
+    private fun mostrarFormularioDinero() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_finalizar_sesion, null)
         val inG = view.findViewById<EditText>(R.id.etFinalizarGanancia)
         val inP = view.findViewById<EditText>(R.id.etFinalizarPropina)
         val inC = view.findViewById<EditText>(R.id.etFinalizarPedidos)
         
-        AlertDialog.Builder(this)
-            .setView(view)
-            .setCancelable(false)
-            .setPositiveButton("Guardar") { _, _ ->
+        AlertDialog.Builder(this).setView(view).setCancelable(false)
+            .setPositiveButton("Guardar y Finalizar") { _, _ ->
                 val g = inG.text.toString().toIntOrNull() ?: 0
                 val p = inP.text.toString().toIntOrNull() ?: 0
                 val c = inC.text.toString().toIntOrNull() ?: 0
-                finalizarSesionDb(g, p, c)
-                stopService(Intent(this, GpsService::class.java))
+                
+                finalizarTracking(g, p, c)
             }
-            .setNegativeButton("Cancelar", null)
-            .show()
+            .setNegativeButton("Regresar", null).show()
     }
 
-    private fun finalizarSesionDb(g: Int, p: Int, c: Int) {
+    private fun finalizarTracking(g: Int, p: Int, c: Int) {
         val fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val horaFin = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        
         lifecycleScope.launch { 
             db.jornadaDao().finalizarSesionConDinero(fecha, jornadaActualId, g, p, c, horaFin)
-            ElevationRefinery(this@MainActivity).refineSession(fecha, jornadaActualId)
+            
+            // Programamos el refinamiento topográfico mediante WorkManager (Senior Approach)
+            lanzarRefineriaWorker(fecha, jornadaActualId)
+            
+            stopService(Intent(this@MainActivity, GpsService::class.java))
         }
     }
 
-    private fun drawableToBitmap(drawable: Drawable): Bitmap {
-        if (drawable is BitmapDrawable) return drawable.bitmap
-        val bitmap = Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap); drawable.setBounds(0, 0, canvas.width, canvas.height); drawable.draw(canvas)
-        return bitmap
+    private fun lanzarRefineriaWorker(fecha: String, sesionId: Int) {
+        val data = workDataOf("fecha" to fecha, "sesionId" to sesionId)
+        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+        val request = OneTimeWorkRequestBuilder<ElevationWorker>()
+            .setInputData(data)
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance(this).enqueue(request)
     }
 
     override fun onPause() { super.onPause(); map.onPause(); locationOverlay.disableMyLocation() }

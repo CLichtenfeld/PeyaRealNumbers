@@ -5,7 +5,9 @@ import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import com.example.peyarealnumbers.utils.AppConstants
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ConfigRiderActivity : AppCompatActivity() {
 
     private lateinit var etPesoRider: EditText

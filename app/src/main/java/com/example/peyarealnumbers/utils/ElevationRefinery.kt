@@ -3,7 +3,7 @@ package com.example.peyarealnumbers.utils
 import android.content.Context
 import android.util.Log
 import com.example.peyarealnumbers.database.AppDatabase
-import com.google.gson.annotations.SerializedName
+import com.example.peyarealnumbers.database.SesionEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
@@ -11,6 +11,8 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.regex.Pattern
 import kotlin.math.*
 
@@ -25,6 +27,10 @@ interface ElevationApi {
     suspend fun getElevations(@Body request: ElevationRequest): ElevationResponse
 }
 
+/**
+ * Clase encargada de refinar los datos de elevación y esfuerzo físico
+ * utilizando datos topográficos reales de una API externa.
+ */
 class ElevationRefinery(val context: Context) {
 
     private val db = AppDatabase.getDatabase(context)
@@ -40,41 +46,64 @@ class ElevationRefinery(val context: Context) {
         if (!gpxFile.exists()) return
 
         try {
-            // 1. Extraer puntos del GPX (Lat/Lon)
-            val puntos2D = extraerPuntosGpx(gpxFile)
-            if (puntos2D.isEmpty()) return
+            // 1. Extraer puntos del GPX con sus respectivos Timestamps para velocidad real
+            val puntosGpx = extraerPuntosGpxConTiempo(gpxFile)
+            if (puntosGpx.isEmpty()) return
 
-            // 2. Pedir elevaciones reales a la API (en bloques de 100 para no saturar)
+            val locationPoints = puntosGpx.map { LocationPoint(it.lat, it.lon) }
+
+            // 2. Obtener elevaciones reales (por lotes para evitar límites de la API)
             val elevacionesReales = mutableListOf<ElevationResult>()
-            puntos2D.chunked(100).forEach { chunk ->
-                val resp = api.getElevations(ElevationRequest(chunk))
-                elevacionesReales.addAll(resp.results)
+            locationPoints.chunked(100).forEach { chunk ->
+                try {
+                    val resp = api.getElevations(ElevationRequest(chunk))
+                    elevacionesReales.addAll(resp.results)
+                } catch (e: Exception) {
+                    Log.e("Refinery", "Error en lote de elevación: ${e.message}")
+                }
             }
 
-            // 3. Recalcular métricas físicas con altura real
-            recalcularYActualizarDb(fecha, numeroSesion, elevacionesReales)
+            if (elevacionesReales.size == puntosGpx.size) {
+                // 3. Recalcular métricas físicas con datos topográficos y tiempos reales
+                recalcularMetricasSenior(fecha, numeroSesion, puntosGpx, elevacionesReales)
+            }
 
         } catch (e: Exception) {
-            Log.e("Refinery", "Error refinando datos: ${e.message}")
+            Log.e("Refinery", "Error crítico en refinería: ${e.message}")
         }
     }
 
-    private fun extraerPuntosGpx(file: File): List<LocationPoint> {
-        val puntos = mutableListOf<LocationPoint>()
+    private fun extraerPuntosGpxConTiempo(file: File): List<GpxPoint> {
+        val puntos = mutableListOf<GpxPoint>()
         val content = file.readText()
-        val pattern = Pattern.compile("lat=\"([^\"]+)\"\\s+lon=\"([^\"]+)\"")
-        val matcher = pattern.matcher(content)
+        
+        // Regex mejorado para capturar lat, lon y el tag <time> asociado
+        val trkptPattern = Pattern.compile("<trkpt lat=\"([^\"]+)\" lon=\"([^\"]+)\">.*?<time>([^<]+)</time>", Pattern.DOTALL)
+        val matcher = trkptPattern.matcher(content)
+        
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply { 
+            timeZone = TimeZone.getTimeZone("UTC") 
+        }
+
         while (matcher.find()) {
-            puntos.add(LocationPoint(matcher.group(1).toDouble(), matcher.group(2).toDouble()))
+            try {
+                val lat = matcher.group(1)!!.toDouble()
+                val lon = matcher.group(2)!!.toDouble()
+                val timeStr = matcher.group(3)!!
+                val time = sdf.parse(timeStr)?.time ?: 0L
+                puntos.add(GpxPoint(lat, lon, time))
+            } catch (e: Exception) {}
         }
         return puntos
     }
 
-    private suspend fun recalcularYActualizarDb(fecha: String, num: Int, puntos: List<ElevationResult>) {
-        if (puntos.size < 2) return
+    private suspend fun recalcularMetricasSenior(fecha: String, num: Int, gpxPoints: List<GpxPoint>, altResult: List<ElevationResult>) {
+        if (gpxPoints.size < 2) return
 
         val prefs = context.getSharedPreferences(AppConstants.PREFS_NAME, Context.MODE_PRIVATE)
-        val masaTotal = (prefs.getFloat(AppConstants.KEY_PESO_RIDER, 80f) + prefs.getFloat(AppConstants.KEY_PESO_BICI, 15f)).toDouble()
+        val pesoRider = prefs.getFloat(AppConstants.KEY_PESO_RIDER, 80f).toDouble()
+        val pesoBici = prefs.getFloat(AppConstants.KEY_PESO_BICI, 15f).toDouble()
+        val masaTotal = pesoRider + pesoBici
         
         var d2dTotal = 0.0
         var d3dTotal = 0.0
@@ -82,26 +111,34 @@ class ElevationRefinery(val context: Context) {
         var joulesTotal = 0.0
         var joulesPlano = 0.0
 
-        for (i in 0 until puntos.size - 1) {
-            val p1 = puntos[i]
-            val p2 = puntos[i+1]
+        for (i in 0 until gpxPoints.size - 1) {
+            val p1 = gpxPoints[i]
+            val p2 = gpxPoints[i+1]
+            val alt1 = altResult[i].elevation
+            val alt2 = altResult[i+1].elevation
 
-            val d2d = haversine(p1.latitude, p1.longitude, p2.latitude, p2.longitude)
-            val diffAlt = p2.elevation - p1.elevation
-            
+            val d2d = haversine(p1.lat, p1.lon, p2.lat, p2.lon)
+            val diffAlt = alt2 - alt1
+            val deltaTime = (p2.time - p1.time) / 1000.0 // en segundos
+
             d2dTotal += d2d
             if (diffAlt > 0) desnivelPos += diffAlt
-            d3dTotal += sqrt(d2d.pow(2.0) + diffAlt.pow(2.0))
-
-            // Estimación de velocidad promedio en el tramo (asumiendo intervalo GPS de 4s)
-            val v = d2d / 4.0 
-            val pendiente = if (d2d > 0) diffAlt / d2d else 0.0
             
-            joulesTotal += calcularWatts(masaTotal, v, pendiente) * 4.0
-            joulesPlano += calcularWatts(masaTotal, v, 0.0) * 4.0
+            // Distancia real en 3D
+            val d3d = sqrt(d2d.pow(2.0) + diffAlt.pow(2.0))
+            d3dTotal += d3d
+
+            if (deltaTime > 0 && d2d > 0.1) {
+                val v = d2d / deltaTime // Velocidad real entre estos dos puntos
+                val pendiente = diffAlt / d2d
+                
+                // Cálculo de energía consumida en este intervalo (Potencia * Tiempo)
+                joulesTotal += calcularWattsSenior(masaTotal, v, pendiente) * deltaTime
+                joulesPlano += calcularWattsSenior(masaTotal, v, 0.0) * deltaTime
+            }
         }
 
-        // 4. Guardar en DB y marcar como procesada
+        // Actualizar base de datos con los datos "Verificados"
         withContext(Dispatchers.IO) {
             val sesion = db.jornadaDao().getSesionEspecifica(fecha, num)
             sesion?.let {
@@ -118,21 +155,33 @@ class ElevationRefinery(val context: Context) {
         }
     }
 
-    private fun calcularWatts(m: Double, v: Double, p: Double): Double {
-        if (v < 0.5) return 0.0
-        val pGravedad = m * 9.81 * v * p
-        val pRodadura = m * 9.81 * v * 0.015
-        val pAire = 0.5 * 1.225 * 0.5 * v.pow(3.0)
-        val total = pGravedad + pRodadura + pAire
-        return if (total < 0) 0.0 else total
+    /**
+     * Modelo físico avanzado de potencia.
+     * Considera gravedad, rodadura y resistencia aerodinámica dinámica.
+     */
+    private fun calcularWattsSenior(m: Double, v: Double, pendiente: Double): Double {
+        if (v < 0.5) return 0.0 // Ignorar ruido de estar detenido
+        
+        val g = 9.81
+        val pGravedad = m * g * v * pendiente
+        val pRodadura = m * g * v * 0.012 // Coeficiente para asfalto/ciudad
+        val pAire = 0.5 * 1.225 * 0.6 * 0.5 * v.pow(3.0) // CdA estimado de un rider
+        
+        val potenciaMecanica = pGravedad + pRodadura + pAire
+        
+        // Si el resultado es negativo (bajada pronunciada), el rider no pedalea (0 Watts), 
+        // pero la energía potencial se disipa en frenos.
+        return if (potenciaMecanica < 0) 0.0 else potenciaMecanica
     }
 
     private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val R = 6371000.0
+        val r = 6371000.0
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
         val a = sin(dLat / 2).pow(2.0) + cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2.0)
         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-        return R * c
+        return r * c
     }
+
+    data class GpxPoint(val lat: Double, val lon: Double, val time: Long)
 }

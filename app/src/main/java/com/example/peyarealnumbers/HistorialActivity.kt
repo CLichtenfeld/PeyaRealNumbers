@@ -12,17 +12,19 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.peyarealnumbers.database.AppDatabase
 import com.example.peyarealnumbers.database.JornadaEntity
 import com.example.peyarealnumbers.utils.FormatUtils
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class HistorialActivity : AppCompatActivity() {
 
     private lateinit var rvHistorial: RecyclerView
@@ -50,7 +52,7 @@ class HistorialActivity : AppCompatActivity() {
     private lateinit var tvTabMes: TextView
     private lateinit var tvTabAnio: TextView
     
-    private lateinit var db: AppDatabase
+    @Inject lateinit var db: AppDatabase
     private var allJornadas: List<JornadaEntity> = emptyList()
     private var currentFilter = "SEMANA"
 
@@ -62,7 +64,6 @@ class HistorialActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_historial)
 
-        db = AppDatabase.getDatabase(this)
         vincularVistas()
         configurarListeners()
 
@@ -236,7 +237,6 @@ class HistorialActivity : AppCompatActivity() {
                 limit <= 7 -> SimpleDateFormat("dd/MM", Locale.getDefault()).format(date)
                 limit == 30 -> if (day % 5 == 0) SimpleDateFormat("dd/MM", Locale.getDefault()).format(date) else ""
                 else -> { // Caso ANIO (365)
-                    // Mostrar etiqueta el 10 de cada mes
                     if (day == 10) SimpleDateFormat("MMM", Locale("es", "ES")).format(date).uppercase() else ""
                 }
             }
