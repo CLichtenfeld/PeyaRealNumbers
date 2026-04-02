@@ -69,6 +69,10 @@ class GpsService : Service() {
     private var preguntandoInactividad = false
     private var registrandoVacioActual = false
     
+    // Nueva variable para evitar bucles de alerta (cooldown de 10 min)
+    private var ultimoTimestampRespuestaInactividad = 0L
+    private val COOLDOWN_INACTIVIDAD_MS = 10 * 60 * 1000L 
+
     private var velocidadRealKmh = 0.0
     private var velocidadSuavizadaKmh = 0.0
     private var potenciaActualWatts = 0
@@ -94,6 +98,7 @@ class GpsService : Service() {
                 registrandoVacioActual = true
             }
             preguntandoInactividad = false
+            ultimoTimestampRespuestaInactividad = System.currentTimeMillis()
             quitarPestanaOverlay()
         }
     }
@@ -326,13 +331,13 @@ class GpsService : Service() {
 
     private fun reproducirSonidoAlerta() {
         try {
-            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE) 
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            // Sonido corto y discreto
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             val ringtone = RingtoneManager.getRingtone(applicationContext, uri)
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 ringtone.audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             }
@@ -378,7 +383,13 @@ class GpsService : Service() {
     private fun gestionarInactividad() {
         if (velocidadSuavizadaKmh < 2.0) {
             segundosDetenido++
-            if (segundosDetenido >= AppConstants.INACTIVIDAD_TIMEOUT_SECONDS && !preguntandoInactividad && !registrandoVacioActual) {
+            
+            // Lógica de Cooldown: Solo preguntar si pasaron 5 min desde el timeout Y 10 min desde la última respuesta
+            val ahoraMs = System.currentTimeMillis()
+            val enCooldown = (ahoraMs - ultimoTimestampRespuestaInactividad) < COOLDOWN_INACTIVIDAD_MS
+
+            if (segundosDetenido >= AppConstants.INACTIVIDAD_TIMEOUT_SECONDS && 
+                !preguntandoInactividad && !registrandoVacioActual && !enCooldown) {
                 preguntandoInactividad = true
                 mostrarPestanaOverlay()
             }

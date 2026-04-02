@@ -13,6 +13,7 @@ import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.content.Intent
+import com.example.peyarealnumbers.utils.AppConstants
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -23,7 +24,6 @@ class InactividadActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Mostrar sobre pantalla de bloqueo y encender pantalla
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -36,48 +36,45 @@ class InactividadActivity : AppCompatActivity() {
         val btnVacio = findViewById<Button>(R.id.btnEsTiempoVacio)
         val btnLaburo = findViewById<Button>(R.id.btnEsEsperandoPedido)
 
-        // Hacer ruido y vibrar
-        val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        ringtone = RingtoneManager.getRingtone(applicationContext, notification)
+        // Sonido discreto (Tipo Notificación)
+        val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        ringtone = RingtoneManager.getRingtone(applicationContext, notificationUri)
         ringtone?.play()
 
         val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(1000, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
         } else {
-            vibrator.vibrate(1000)
+            vibrator.vibrate(500)
         }
 
         btnVacio.setOnClickListener {
-            detenerAlarma()
-            val intent = Intent("ACCION_INACTIVIDAD").apply {
-                putExtra("es_vacio", true)
-            }
-            LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
-            finish()
+            finalizarConAccion(true)
         }
 
         btnLaburo.setOnClickListener {
-            detenerAlarma()
-            val intent = Intent("ACCION_INACTIVIDAD").apply {
-                putExtra("es_vacio", false)
-            }
-            LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
-            finish()
+            finalizarConAccion(false)
         }
+    }
+
+    private fun finalizarConAccion(esVacio: Boolean) {
+        detenerAlarma()
+        val intent = Intent(AppConstants.ACTION_INACTIVIDAD).apply {
+            putExtra(AppConstants.EXTRA_ES_VACIO, esVacio)
+        }
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+        finish()
     }
 
     private fun detenerAlarma() {
-        ringtone?.let {
-            if (it.isPlaying) {
-                it.stop()
-            }
-        }
+        try {
+            ringtone?.let { if (it.isPlaying) it.stop() }
+        } catch (e: Exception) {}
+        ringtone = null
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val keyCode = event.keyCode
-        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
             detenerAlarma()
         }
         return super.dispatchKeyEvent(event)
